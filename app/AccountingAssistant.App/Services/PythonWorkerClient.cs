@@ -1,6 +1,7 @@
 using AccountingAssistant.App.Models;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 
 namespace AccountingAssistant.App.Services;
@@ -22,9 +23,13 @@ public sealed class PythonWorkerClient
             FileName = "python",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+
+        startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
 
         startInfo.ArgumentList.Add(workerScript);
         startInfo.ArgumentList.Add("analyze");
