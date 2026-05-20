@@ -21,6 +21,7 @@ public partial class MainWindow : Window
 
     private readonly ObservableCollection<ReceiptImageItem> _images = [];
     private readonly PythonWorkerClient _workerClient = new();
+    private bool _isMarkCensoredCoolingDown;
 
     public ICommand MarkCensoredCommand { get; }
 
@@ -39,6 +40,40 @@ public partial class MainWindow : Window
 
     private void SelectImagesButton_Click(object sender, RoutedEventArgs e)
     {
+        var choice = System.Windows.MessageBox.Show(
+            this,
+            "Choose Yes to select a folder, or No to select image files.",
+            "Load Receipts",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+
+        if (choice == MessageBoxResult.Cancel)
+        {
+            return;
+        }
+
+        var selectedFiles = choice == MessageBoxResult.Yes
+            ? SelectImagesFromFolder()
+            : SelectImageFiles();
+
+        if (selectedFiles.Count == 0)
+        {
+            StatusTextBlock.Text = "No images selected.";
+            return;
+        }
+
+        _images.Clear();
+        foreach (var fileName in selectedFiles)
+        {
+            _images.Add(new ReceiptImageItem(fileName));
+        }
+
+        ImageListBox.SelectedIndex = _images.Count > 0 ? 0 : -1;
+        StatusTextBlock.Text = $"Loaded {_images.Count} image(s).";
+    }
+
+    private IReadOnlyList<string> SelectImageFiles()
+    {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = "Select receipt images",
@@ -48,17 +83,37 @@ public partial class MainWindow : Window
 
         if (dialog.ShowDialog(this) != true)
         {
-            return;
+            return [];
         }
 
-        _images.Clear();
-        foreach (var fileName in dialog.FileNames)
+        return dialog.FileNames;
+    }
+
+    private IReadOnlyList<string> SelectImagesFromFolder()
+    {
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
         {
-            _images.Add(new ReceiptImageItem(fileName));
+            Description = "Select a folder containing receipt images",
+            UseDescriptionForTitle = true
+        };
+
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return [];
         }
 
-        ImageListBox.SelectedIndex = _images.Count > 0 ? 0 : -1;
-        StatusTextBlock.Text = $"Loaded {_images.Count} image(s).";
+        var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg",
+            ".jpeg",
+            ".png"
+        };
+
+        return Directory
+            .EnumerateFiles(dialog.SelectedPath)
+            .Where(path => extensions.Contains(Path.GetExtension(path)))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private void ImageListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -125,6 +180,12 @@ public partial class MainWindow : Window
 
     private void MarkSelectedCensored()
     {
+        if (_isMarkCensoredCoolingDown)
+        {
+            StatusTextBlock.Text = "Mark Censored is cooling down.";
+            return;
+        }
+
         if (ImageListBox.SelectedItem is not ReceiptImageItem item)
         {
             StatusTextBlock.Text = "Select an analyzed image first.";
@@ -139,7 +200,24 @@ public partial class MainWindow : Window
 
         item.Status = ReceiptQueueStatus.Censored;
         StatusTextBlock.Text = $"{item.FileName} marked censored.";
+        StartMarkCensoredCooldown();
         MoveToNextReceipt();
+    }
+
+    private async void StartMarkCensoredCooldown()
+    {
+        _isMarkCensoredCoolingDown = true;
+        MarkCensoredButton.IsEnabled = false;
+
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3));
+        }
+        finally
+        {
+            _isMarkCensoredCoolingDown = false;
+            MarkCensoredButton.IsEnabled = AnalyzeButton.IsEnabled;
+        }
     }
 
     private void MoveToNextReceipt()
