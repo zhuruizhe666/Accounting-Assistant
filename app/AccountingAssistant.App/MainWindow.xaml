@@ -63,8 +63,12 @@
             </GroupBox>
 
             <Border Grid.Column="1" BorderBrush="#D0D0D0" BorderThickness="1" Background="#FAFAFA">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <Image x:Name="ReceiptImage" Stretch="Uniform" />
+                <ScrollViewer x:Name="ReceiptScrollViewer"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                    <Image x:Name="ReceiptImage"
+                           Stretch="Uniform"
+                           Width="{Binding ElementName=ReceiptScrollViewer, Path=ViewportWidth}" />
                 </ScrollViewer>
             </Border>
 
