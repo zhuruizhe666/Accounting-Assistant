@@ -1,0 +1,18 @@
+[project]
+name = "accounting-worker"
+version = "0.1.0"
+description = "Python worker for Accounting Assistant OCR and receipt understanding."
+requires-python = ">=3.11,<3.13"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0"
+]
+ocr = [
+  "paddleocr>=3.0.0"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -1,0 +1,21 @@
+{
+  "image_path": "C:\\path\\to\\receipt.jpg",
+  "status": "mock",
+  "ocr_items": [
+    {
+      "text": "Total",
+      "confidence": 0.98,
+      "bbox": [[40, 220], [120, 220], [120, 255], [40, 255]]
+    }
+  ],
+  "candidates": {
+    "total": [
+      {
+        "value": "128.00",
+        "confidence": 0.9,
+        "source_text": "Total 128.00",
+        "bbox_refs": [0]
+      }
+    ]
+  }
+}

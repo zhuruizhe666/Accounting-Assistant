@@ -1,0 +1,52 @@
+<Window x:Class="AccountingAssistant.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Accounting Assistant" Height="760" Width="1160" MinHeight="640" MinWidth="980">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                <Button x:Name="SelectImagesButton" Content="Select Images" Width="120" Height="34" Click="SelectImagesButton_Click" />
+                <Button x:Name="AnalyzeButton" Content="Analyze Mock" Width="120" Height="34" Margin="8,0,0,0" Click="AnalyzeButton_Click" />
+            </StackPanel>
+            <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#555555" />
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="360" />
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Grid.Column="0" Header="Receipt Queue" Margin="0,0,12,0">
+                <ListBox x:Name="ImageListBox" DisplayMemberPath="FileName" SelectionChanged="ImageListBox_SelectionChanged" />
+            </GroupBox>
+
+            <Border Grid.Column="1" BorderBrush="#D0D0D0" BorderThickness="1" Background="#FAFAFA">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <Image x:Name="ReceiptImage" Stretch="Uniform" />
+                </ScrollViewer>
+            </Border>
+
+            <GroupBox Grid.Column="2" Header="Worker Result" Margin="12,0,0,0">
+                <TextBox x:Name="ResultTextBox"
+                         FontFamily="Consolas"
+                         FontSize="12"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto" />
+            </GroupBox>
+        </Grid>
+
+        <TextBlock Grid.Row="2" Margin="0,12,0,0" Foreground="#777777"
+                   Text="Phase 0 scaffold: UI shell + Python worker contract. Real OCR and field editing come next." />
+    </Grid>
+</Window>
