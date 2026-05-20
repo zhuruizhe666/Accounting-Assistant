@@ -40,25 +40,19 @@ public partial class MainWindow : Window
 
     private void SelectImagesButton_Click(object sender, RoutedEventArgs e)
     {
-        var choice = System.Windows.MessageBox.Show(
-            this,
-            "Choose Yes to select a folder, or No to select image files.",
-            "Load Receipts",
-            MessageBoxButton.YesNoCancel,
-            MessageBoxImage.Question);
+        LoadImages(SelectImageFiles(), "No images selected.");
+    }
 
-        if (choice == MessageBoxResult.Cancel)
-        {
-            return;
-        }
+    private void SelectFolderButton_Click(object sender, RoutedEventArgs e)
+    {
+        LoadImages(SelectImagesFromFolder(), "No supported images found in folder.");
+    }
 
-        var selectedFiles = choice == MessageBoxResult.Yes
-            ? SelectImagesFromFolder()
-            : SelectImageFiles();
-
+    private void LoadImages(IReadOnlyList<string> selectedFiles, string emptyMessage)
+    {
         if (selectedFiles.Count == 0)
         {
-            StatusTextBlock.Text = "No images selected.";
+            StatusTextBlock.Text = emptyMessage;
             return;
         }
 
