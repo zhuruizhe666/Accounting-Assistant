@@ -1,3 +1,4 @@
+using AccountingAssistant.App.Commands;
 using AccountingAssistant.App.Models;
 using AccountingAssistant.App.Services;
 using Microsoft.Win32;
@@ -6,6 +7,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media.Imaging;
 
 namespace AccountingAssistant.App;
@@ -20,9 +22,17 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<ReceiptImageItem> _images = [];
     private readonly PythonWorkerClient _workerClient = new();
 
+    public ICommand MarkCensoredCommand { get; }
+
+    public ICommand NextReceiptCommand { get; }
+
     public MainWindow()
     {
+        MarkCensoredCommand = new RelayCommand(_ => MarkSelectedCensored());
+        NextReceiptCommand = new RelayCommand(_ => MoveToNextReceipt());
+
         InitializeComponent();
+        DataContext = this;
         ImageListBox.ItemsSource = _images;
         StatusTextBlock.Text = "Ready. Select receipt images to start.";
     }
@@ -105,6 +115,16 @@ public partial class MainWindow : Window
 
     private void MarkCensoredButton_Click(object sender, RoutedEventArgs e)
     {
+        MarkSelectedCensored();
+    }
+
+    private void NextReceiptButton_Click(object sender, RoutedEventArgs e)
+    {
+        MoveToNextReceipt();
+    }
+
+    private void MarkSelectedCensored()
+    {
         if (ImageListBox.SelectedItem is not ReceiptImageItem item)
         {
             StatusTextBlock.Text = "Select an analyzed image first.";
@@ -119,6 +139,29 @@ public partial class MainWindow : Window
 
         item.Status = ReceiptQueueStatus.Censored;
         StatusTextBlock.Text = $"{item.FileName} marked censored.";
+        MoveToNextReceipt();
+    }
+
+    private void MoveToNextReceipt()
+    {
+        if (_images.Count == 0)
+        {
+            StatusTextBlock.Text = "No receipts loaded.";
+            return;
+        }
+
+        var currentIndex = ImageListBox.SelectedIndex;
+        var nextIndex = currentIndex < 0 ? 0 : currentIndex + 1;
+
+        if (nextIndex >= _images.Count)
+        {
+            StatusTextBlock.Text = "Already at the last receipt.";
+            return;
+        }
+
+        ImageListBox.SelectedIndex = nextIndex;
+        ImageListBox.ScrollIntoView(_images[nextIndex]);
+        StatusTextBlock.Text = $"Moved to {_images[nextIndex].FileName}.";
     }
 
     private async Task AnalyzeItemAsync(ReceiptImageItem item, bool manageButtons = true)
@@ -158,6 +201,7 @@ public partial class MainWindow : Window
         AnalyzeButton.IsEnabled = isEnabled;
         AnalyzeAllPendingButton.IsEnabled = isEnabled;
         MarkCensoredButton.IsEnabled = isEnabled;
+        NextReceiptButton.IsEnabled = isEnabled;
     }
 
     private static BitmapImage LoadBitmap(string path)
