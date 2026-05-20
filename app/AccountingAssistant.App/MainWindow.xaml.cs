@@ -56,14 +56,31 @@ public partial class MainWindow : Window
             return;
         }
 
-        _images.Clear();
+        var existingPaths = _images
+            .Select(item => item.FullPath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var addedCount = 0;
+        var skippedCount = 0;
+
         foreach (var fileName in selectedFiles)
         {
+            if (!existingPaths.Add(fileName))
+            {
+                skippedCount++;
+                continue;
+            }
+
             _images.Add(new ReceiptImageItem(fileName));
+            addedCount++;
         }
 
-        ImageListBox.SelectedIndex = _images.Count > 0 ? 0 : -1;
-        StatusTextBlock.Text = $"Loaded {_images.Count} image(s).";
+        if (ImageListBox.SelectedIndex < 0 && _images.Count > 0)
+        {
+            ImageListBox.SelectedIndex = 0;
+        }
+
+        StatusTextBlock.Text = $"Added {addedCount} image(s). Skipped {skippedCount} duplicate(s). Queue total: {_images.Count}.";
     }
 
     private IReadOnlyList<string> SelectImageFiles()
@@ -233,6 +250,7 @@ public partial class MainWindow : Window
 
         ImageListBox.SelectedIndex = nextIndex;
         ImageListBox.ScrollIntoView(_images[nextIndex]);
+        ImageListBox.Focus();
         StatusTextBlock.Text = $"Moved to {_images[nextIndex].FileName}.";
     }
 
