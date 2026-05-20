@@ -43,6 +43,7 @@ public sealed class ReceiptImageItem : INotifyPropertyChanged
         ReceiptQueueStatus.Pending => "Pending",
         ReceiptQueueStatus.Processing => "Processing",
         ReceiptQueueStatus.Analyzed => "Analyzed",
+        ReceiptQueueStatus.Censored => "Censored",
         ReceiptQueueStatus.Error => "Error",
         _ => "Unknown"
     };
@@ -50,8 +51,9 @@ public sealed class ReceiptImageItem : INotifyPropertyChanged
     public MediaBrush StatusBrush => Status switch
     {
         ReceiptQueueStatus.Pending => MediaBrushes.Gray,
-        ReceiptQueueStatus.Processing => MediaBrushes.Orange,
+        ReceiptQueueStatus.Processing => MediaBrushes.LightSkyBlue,
         ReceiptQueueStatus.Analyzed => MediaBrushes.Green,
+        ReceiptQueueStatus.Censored => MediaBrushes.Gold,
         ReceiptQueueStatus.Error => MediaBrushes.Red,
         _ => MediaBrushes.Gray
     };
@@ -67,5 +69,6 @@ public enum ReceiptQueueStatus
     Pending,
     Processing,
     Analyzed,
+    Censored,
     Error
 }

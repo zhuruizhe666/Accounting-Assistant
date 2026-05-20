@@ -71,7 +71,63 @@ public partial class MainWindow : Window
             return;
         }
 
-        AnalyzeButton.IsEnabled = false;
+        await AnalyzeItemAsync(item);
+    }
+
+    private async void AnalyzeAllPendingButton_Click(object sender, RoutedEventArgs e)
+    {
+        var pendingItems = _images
+            .Where(item => item.Status == ReceiptQueueStatus.Pending)
+            .ToList();
+
+        if (pendingItems.Count == 0)
+        {
+            StatusTextBlock.Text = "No pending images to analyze.";
+            return;
+        }
+
+        SetAnalysisButtonsEnabled(false);
+        try
+        {
+            foreach (var item in pendingItems)
+            {
+                ImageListBox.SelectedItem = item;
+                await AnalyzeItemAsync(item, manageButtons: false);
+            }
+
+            StatusTextBlock.Text = $"Analyzed {pendingItems.Count} pending image(s).";
+        }
+        finally
+        {
+            SetAnalysisButtonsEnabled(true);
+        }
+    }
+
+    private void MarkCensoredButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ImageListBox.SelectedItem is not ReceiptImageItem item)
+        {
+            StatusTextBlock.Text = "Select an analyzed image first.";
+            return;
+        }
+
+        if (item.Status != ReceiptQueueStatus.Analyzed)
+        {
+            StatusTextBlock.Text = "Only analyzed images can be marked censored.";
+            return;
+        }
+
+        item.Status = ReceiptQueueStatus.Censored;
+        StatusTextBlock.Text = $"{item.FileName} marked censored.";
+    }
+
+    private async Task AnalyzeItemAsync(ReceiptImageItem item, bool manageButtons = true)
+    {
+        if (manageButtons)
+        {
+            SetAnalysisButtonsEnabled(false);
+        }
+
         item.Status = ReceiptQueueStatus.Processing;
         StatusTextBlock.Text = $"Analyzing {item.FileName}...";
 
@@ -80,7 +136,7 @@ public partial class MainWindow : Window
             var result = await _workerClient.AnalyzeMockAsync(item.FullPath);
             ResultTextBox.Text = JsonSerializer.Serialize(result, JsonOptions);
             item.Status = ReceiptQueueStatus.Analyzed;
-            StatusTextBlock.Text = $"{item.FileName} analyzed.";
+            StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting human review.";
         }
         catch (Exception ex)
         {
@@ -90,8 +146,18 @@ public partial class MainWindow : Window
         }
         finally
         {
-            AnalyzeButton.IsEnabled = true;
+            if (manageButtons)
+            {
+                SetAnalysisButtonsEnabled(true);
+            }
         }
+    }
+
+    private void SetAnalysisButtonsEnabled(bool isEnabled)
+    {
+        AnalyzeButton.IsEnabled = isEnabled;
+        AnalyzeAllPendingButton.IsEnabled = isEnabled;
+        MarkCensoredButton.IsEnabled = isEnabled;
     }
 
     private static BitmapImage LoadBitmap(string path)

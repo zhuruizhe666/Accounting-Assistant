@@ -13,6 +13,8 @@
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                 <Button x:Name="SelectImagesButton" Content="Select Images" Width="120" Height="34" Click="SelectImagesButton_Click" />
                 <Button x:Name="AnalyzeButton" Content="Analyze Mock" Width="120" Height="34" Margin="8,0,0,0" Click="AnalyzeButton_Click" />
+                <Button x:Name="AnalyzeAllPendingButton" Content="Analyze All Pending" Width="160" Height="34" Margin="8,0,0,0" Click="AnalyzeAllPendingButton_Click" />
+                <Button x:Name="MarkCensoredButton" Content="Mark Censored" Width="130" Height="34" Margin="8,0,0,0" Click="MarkCensoredButton_Click" />
             </StackPanel>
             <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#555555" />
         </DockPanel>
