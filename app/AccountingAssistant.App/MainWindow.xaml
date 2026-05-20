@@ -25,7 +25,30 @@
             </Grid.ColumnDefinitions>
 
             <GroupBox Grid.Column="0" Header="Receipt Queue" Margin="0,0,12,0">
-                <ListBox x:Name="ImageListBox" DisplayMemberPath="FileName" SelectionChanged="ImageListBox_SelectionChanged" />
+                <ListBox x:Name="ImageListBox" SelectionChanged="ImageListBox_SelectionChanged">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="4,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="18" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Ellipse Grid.Column="0"
+                                         Width="10"
+                                         Height="10"
+                                         Fill="{Binding StatusBrush}"
+                                         VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding StatusText}"
+                                               FontSize="11"
+                                               Foreground="#666666"
+                                               Margin="0,1,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </GroupBox>
 
             <Border Grid.Column="1" BorderBrush="#D0D0D0" BorderThickness="1" Background="#FAFAFA">

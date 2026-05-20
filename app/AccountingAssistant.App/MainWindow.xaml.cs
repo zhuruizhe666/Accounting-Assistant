@@ -72,18 +72,21 @@ public partial class MainWindow : Window
         }
 
         AnalyzeButton.IsEnabled = false;
-        StatusTextBlock.Text = "Calling Python worker mock...";
+        item.Status = ReceiptQueueStatus.Processing;
+        StatusTextBlock.Text = $"Analyzing {item.FileName}...";
 
         try
         {
             var result = await _workerClient.AnalyzeMockAsync(item.FullPath);
             ResultTextBox.Text = JsonSerializer.Serialize(result, JsonOptions);
-            StatusTextBlock.Text = "Worker mock returned successfully.";
+            item.Status = ReceiptQueueStatus.Analyzed;
+            StatusTextBlock.Text = $"{item.FileName} analyzed.";
         }
         catch (Exception ex)
         {
             ResultTextBox.Text = ex.ToString();
-            StatusTextBlock.Text = "Worker call failed. Check Python installation and worker path.";
+            item.Status = ReceiptQueueStatus.Error;
+            StatusTextBlock.Text = $"{item.FileName} failed. Check worker output.";
         }
         finally
         {
