@@ -65,14 +65,16 @@
             <Border Grid.Column="1" BorderBrush="#D0D0D0" BorderThickness="1" Background="#FAFAFA">
                 <ScrollViewer x:Name="ReceiptScrollViewer"
                               HorizontalScrollBarVisibility="Disabled"
-                              VerticalScrollBarVisibility="Auto">
-                    <Grid>
+                              VerticalScrollBarVisibility="Auto"
+                              SizeChanged="ReceiptScrollViewer_SizeChanged">
+                    <Grid x:Name="ReceiptImageHost"
+                          HorizontalAlignment="Left"
+                          VerticalAlignment="Top">
                         <Image x:Name="ReceiptImage"
-                               Stretch="Uniform"
-                               Width="{Binding ElementName=ReceiptScrollViewer, Path=ViewportWidth}" />
+                               Stretch="Fill"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Top" />
                         <Canvas x:Name="OcrOverlayCanvas"
-                                Width="{Binding ElementName=ReceiptImage, Path=ActualWidth}"
-                                Height="{Binding ElementName=ReceiptImage, Path=ActualHeight}"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Top"
                                 IsHitTestVisible="False" />

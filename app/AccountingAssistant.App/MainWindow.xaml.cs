@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<ReceiptImageItem> _images = [];
     private readonly PythonWorkerClient _workerClient = new();
     private bool _isMarkCensoredCoolingDown;
+    private ReceiptAnalysisResult? _lastAnalysisResult;
 
     public ICommand MarkCensoredCommand { get; }
 
@@ -134,11 +135,14 @@ public partial class MainWindow : Window
         if (ImageListBox.SelectedItem is not ReceiptImageItem item)
         {
             ReceiptImage.Source = null;
+            _lastAnalysisResult = null;
             OcrOverlayCanvas.Children.Clear();
             return;
         }
 
         ReceiptImage.Source = LoadBitmap(item.FullPath);
+        _lastAnalysisResult = null;
+        UpdateReceiptImageLayout();
         OcrOverlayCanvas.Children.Clear();
         StatusTextBlock.Text = $"Selected {item.FileName}.";
     }
@@ -272,6 +276,7 @@ public partial class MainWindow : Window
         {
             var result = await _workerClient.AnalyzeAsync(item.FullPath);
             ResultTextBox.Text = JsonSerializer.Serialize(result, JsonOptions);
+            _lastAnalysisResult = result;
             RenderOcrHighlights(result);
             item.Status = ReceiptQueueStatus.Analyzed;
             StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting human review.";
@@ -299,6 +304,45 @@ public partial class MainWindow : Window
         NextReceiptButton.IsEnabled = isEnabled;
     }
 
+    private void ReceiptScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateReceiptImageLayout();
+
+        if (_lastAnalysisResult is not null)
+        {
+            RenderOcrHighlights(_lastAnalysisResult);
+        }
+    }
+
+    private void UpdateReceiptImageLayout()
+    {
+        if (ReceiptImage.Source is not BitmapSource bitmap || bitmap.PixelWidth <= 0 || bitmap.PixelHeight <= 0)
+        {
+            return;
+        }
+
+        var viewportWidth = ReceiptScrollViewer.ViewportWidth;
+        if (double.IsNaN(viewportWidth) || viewportWidth <= 0)
+        {
+            viewportWidth = ReceiptScrollViewer.ActualWidth;
+        }
+
+        if (double.IsNaN(viewportWidth) || viewportWidth <= 0)
+        {
+            return;
+        }
+
+        var renderedWidth = viewportWidth;
+        var renderedHeight = renderedWidth * bitmap.PixelHeight / bitmap.PixelWidth;
+
+        ReceiptImageHost.Width = renderedWidth;
+        ReceiptImageHost.Height = renderedHeight;
+        ReceiptImage.Width = renderedWidth;
+        ReceiptImage.Height = renderedHeight;
+        OcrOverlayCanvas.Width = renderedWidth;
+        OcrOverlayCanvas.Height = renderedHeight;
+    }
+
     private void RenderOcrHighlights(ReceiptAnalysisResult result)
     {
         OcrOverlayCanvas.Children.Clear();
@@ -308,16 +352,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        ReceiptImage.UpdateLayout();
-        OcrOverlayCanvas.UpdateLayout();
+        UpdateReceiptImageLayout();
 
-        if (bitmap.PixelWidth <= 0 || bitmap.PixelHeight <= 0 || ReceiptImage.ActualWidth <= 0 || ReceiptImage.ActualHeight <= 0)
+        if (bitmap.PixelWidth <= 0 || bitmap.PixelHeight <= 0 || ReceiptImage.Width <= 0 || ReceiptImage.Height <= 0)
         {
             return;
         }
 
-        var scaleX = ReceiptImage.ActualWidth / bitmap.PixelWidth;
-        var scaleY = ReceiptImage.ActualHeight / bitmap.PixelHeight;
+        var scaleX = ReceiptImage.Width / bitmap.PixelWidth;
+        var scaleY = ReceiptImage.Height / bitmap.PixelHeight;
 
         foreach (var item in result.OcrItems)
         {
