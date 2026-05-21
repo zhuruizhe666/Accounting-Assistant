@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from pathlib import Path
@@ -11,7 +12,9 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
+from accounting_worker.candidate_extractor import extract_candidates
 from accounting_worker.mock_analysis import build_mock_analysis
+from accounting_worker.ocr import run_primary_ocr
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,11 +33,18 @@ def main() -> int:
 
     if args.command == "analyze":
         image_path = Path(args.image_path)
-        if not args.mock:
-            print("Only --mock is implemented in Phase 0.", file=sys.stderr)
-            return 2
+        if args.mock:
+            result = build_mock_analysis(image_path)
+        else:
+            with contextlib.redirect_stdout(sys.stderr):
+                ocr_items = run_primary_ocr(image_path)
+            result = {
+                "image_path": str(image_path),
+                "status": "ok",
+                "ocr_items": ocr_items,
+                "candidates": extract_candidates(ocr_items),
+            }
 
-        result = build_mock_analysis(image_path)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
