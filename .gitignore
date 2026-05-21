@@ -4,6 +4,7 @@
 
 bin/
 obj/
+tmp-build-verify/
 
 __pycache__/
 *.py[cod]

@@ -21,7 +21,7 @@
                     <Button x:Name="SelectFolderButton" Content="Select Folder" Width="120" Height="34" Margin="8,0,0,0" Click="SelectFolderButton_Click" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button x:Name="AnalyzeButton" Content="Analyze Mock" Width="120" Height="34" Click="AnalyzeButton_Click" />
+                    <Button x:Name="AnalyzeButton" Content="Analyze" Width="120" Height="34" Click="AnalyzeButton_Click" />
                     <Button x:Name="AnalyzeAllPendingButton" Content="Analyze All" Width="120" Height="34" Margin="8,0,0,0" Click="AnalyzeAllPendingButton_Click" />
                 </StackPanel>
             </StackPanel>
@@ -66,9 +66,17 @@
                 <ScrollViewer x:Name="ReceiptScrollViewer"
                               HorizontalScrollBarVisibility="Disabled"
                               VerticalScrollBarVisibility="Auto">
-                    <Image x:Name="ReceiptImage"
-                           Stretch="Uniform"
-                           Width="{Binding ElementName=ReceiptScrollViewer, Path=ViewportWidth}" />
+                    <Grid>
+                        <Image x:Name="ReceiptImage"
+                               Stretch="Uniform"
+                               Width="{Binding ElementName=ReceiptScrollViewer, Path=ViewportWidth}" />
+                        <Canvas x:Name="OcrOverlayCanvas"
+                                Width="{Binding ElementName=ReceiptImage, Path=ActualWidth}"
+                                Height="{Binding ElementName=ReceiptImage, Path=ActualHeight}"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                IsHitTestVisible="False" />
+                    </Grid>
                 </ScrollViewer>
             </Border>
 

@@ -25,7 +25,51 @@ def parse_args() -> argparse.Namespace:
     analyze.add_argument("image_path", help="Path to the receipt image")
     analyze.add_argument("--mock", action="store_true", help="Return deterministic mock output")
 
+    subparsers.add_parser("serve", help="Run a persistent JSON-lines worker")
+
     return parser.parse_args()
+
+
+def analyze_image(image_path: Path, *, use_mock: bool) -> dict:
+    if use_mock:
+        return build_mock_analysis(image_path)
+
+    with contextlib.redirect_stdout(sys.stderr):
+        ocr_items = run_primary_ocr(image_path)
+
+    return {
+        "image_path": str(image_path),
+        "status": "ok",
+        "ocr_items": ocr_items,
+        "candidates": extract_candidates(ocr_items),
+    }
+
+
+def serve() -> int:
+    for line in sys.stdin:
+        try:
+            request = json.loads(line)
+            command = request.get("command")
+
+            if command != "analyze":
+                raise ValueError(f"Unknown serve command: {command}")
+
+            result = analyze_image(
+                Path(request["image_path"]),
+                use_mock=bool(request.get("mock", False)),
+            )
+        except Exception as exc:
+            result = {
+                "image_path": "",
+                "status": "error",
+                "ocr_items": [],
+                "candidates": {},
+                "error": str(exc),
+            }
+
+        print(json.dumps(result, ensure_ascii=False, separators=(",", ":")), flush=True)
+
+    return 0
 
 
 def main() -> int:
@@ -33,20 +77,13 @@ def main() -> int:
 
     if args.command == "analyze":
         image_path = Path(args.image_path)
-        if args.mock:
-            result = build_mock_analysis(image_path)
-        else:
-            with contextlib.redirect_stdout(sys.stderr):
-                ocr_items = run_primary_ocr(image_path)
-            result = {
-                "image_path": str(image_path),
-                "status": "ok",
-                "ocr_items": ocr_items,
-                "candidates": extract_candidates(ocr_items),
-            }
+        result = analyze_image(image_path, use_mock=args.mock)
 
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
+
+    if args.command == "serve":
+        return serve()
 
     print(f"Unknown command: {args.command}", file=sys.stderr)
     return 2

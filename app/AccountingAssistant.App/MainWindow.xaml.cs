@@ -8,7 +8,9 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 
 namespace AccountingAssistant.App;
 
@@ -122,7 +124,7 @@ public partial class MainWindow : Window
 
         return Directory
             .EnumerateFiles(dialog.SelectedPath)
-            .Where(path => extensions.Contains(Path.GetExtension(path)))
+            .Where(path => extensions.Contains(System.IO.Path.GetExtension(path)))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
@@ -132,10 +134,12 @@ public partial class MainWindow : Window
         if (ImageListBox.SelectedItem is not ReceiptImageItem item)
         {
             ReceiptImage.Source = null;
+            OcrOverlayCanvas.Children.Clear();
             return;
         }
 
         ReceiptImage.Source = LoadBitmap(item.FullPath);
+        OcrOverlayCanvas.Children.Clear();
         StatusTextBlock.Text = $"Selected {item.FileName}.";
     }
 
@@ -266,8 +270,9 @@ public partial class MainWindow : Window
 
         try
         {
-            var result = await _workerClient.AnalyzeMockAsync(item.FullPath);
+            var result = await _workerClient.AnalyzeAsync(item.FullPath);
             ResultTextBox.Text = JsonSerializer.Serialize(result, JsonOptions);
+            RenderOcrHighlights(result);
             item.Status = ReceiptQueueStatus.Analyzed;
             StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting human review.";
         }
@@ -292,6 +297,55 @@ public partial class MainWindow : Window
         AnalyzeAllPendingButton.IsEnabled = isEnabled;
         MarkCensoredButton.IsEnabled = isEnabled;
         NextReceiptButton.IsEnabled = isEnabled;
+    }
+
+    private void RenderOcrHighlights(ReceiptAnalysisResult result)
+    {
+        OcrOverlayCanvas.Children.Clear();
+
+        if (ReceiptImage.Source is not BitmapSource bitmap)
+        {
+            return;
+        }
+
+        ReceiptImage.UpdateLayout();
+        OcrOverlayCanvas.UpdateLayout();
+
+        if (bitmap.PixelWidth <= 0 || bitmap.PixelHeight <= 0 || ReceiptImage.ActualWidth <= 0 || ReceiptImage.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        var scaleX = ReceiptImage.ActualWidth / bitmap.PixelWidth;
+        var scaleY = ReceiptImage.ActualHeight / bitmap.PixelHeight;
+
+        foreach (var item in result.OcrItems)
+        {
+            if (item.BBox.Count == 0)
+            {
+                continue;
+            }
+
+            var xs = item.BBox.Select(point => point[0]).ToList();
+            var ys = item.BBox.Select(point => point[1]).ToList();
+            var left = xs.Min() * scaleX;
+            var top = ys.Min() * scaleY;
+            var width = Math.Max(1, (xs.Max() - xs.Min()) * scaleX);
+            var height = Math.Max(1, (ys.Max() - ys.Min()) * scaleY);
+
+            var rectangle = new System.Windows.Shapes.Rectangle
+            {
+                Width = width,
+                Height = height,
+                Stroke = System.Windows.Media.Brushes.LimeGreen,
+                StrokeThickness = 2,
+                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 50, 205, 50))
+            };
+
+            Canvas.SetLeft(rectangle, left);
+            Canvas.SetTop(rectangle, top);
+            OcrOverlayCanvas.Children.Add(rectangle);
+        }
     }
 
     private static BitmapImage LoadBitmap(string path)

@@ -6,7 +6,8 @@ public sealed record ReceiptAnalysisResult(
     [property: JsonPropertyName("image_path")] string ImagePath,
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("ocr_items")] IReadOnlyList<OcrItem> OcrItems,
-    [property: JsonPropertyName("candidates")] Dictionary<string, IReadOnlyList<FieldCandidate>> Candidates);
+    [property: JsonPropertyName("candidates")] Dictionary<string, IReadOnlyList<FieldCandidate>> Candidates,
+    [property: JsonPropertyName("error")] string? Error = null);
 
 public sealed record OcrItem(
     [property: JsonPropertyName("text")] string Text,
