@@ -45,6 +45,8 @@ public partial class MainWindow : Window
     private readonly PythonWorkerClient _workerClient = new();
     private bool _isReviewActionCoolingDown;
     private bool _isReceiptLayoutUpdateQueued;
+    private bool _isOcrWorkerReady;
+    private bool _isAnalyzeAllRunning;
     private HashSet<int> _selectedOcrIndexes = [];
 
     public ICommand ConfirmOcrCommand { get; }
@@ -81,18 +83,19 @@ public partial class MainWindow : Window
         try
         {
             await _workerClient.WarmupAsync();
+            _isOcrWorkerReady = true;
             StatusTextBlock.Text = "OCR worker ready.";
             AppendDebugDump("UI startup warmup completed. Analyze buttons enabled.");
         }
         catch (Exception ex)
         {
+            _isOcrWorkerReady = false;
             StatusTextBlock.Text = "OCR worker warmup failed. Check Debug Dump.";
             AppendDebugDump($"UI startup warmup failed: {ex}");
         }
         finally
         {
-            AnalyzeButton.IsEnabled = true;
-            AnalyzeAllPendingButton.IsEnabled = true;
+            UpdateActionButtonsEnabled();
         }
     }
 
@@ -148,6 +151,7 @@ public partial class MainWindow : Window
 
         StatusTextBlock.Text = $"Added {addedCount} image(s). Skipped {skippedCount} duplicate(s). Queue total: {_images.Count}.";
         AppendDebugDump($"UI queue updated: added={addedCount}, skipped_duplicates={skippedCount}, total={_images.Count}.");
+        UpdateActionButtonsEnabled();
     }
 
     private IReadOnlyList<string> SelectImageFiles()
@@ -203,6 +207,7 @@ public partial class MainWindow : Window
             _ocrDisplayItems.Clear();
             _fieldReviewItems.Clear();
             _selectedOcrIndexes = [];
+            UpdateActionButtonsEnabled();
             return;
         }
 
@@ -223,6 +228,7 @@ public partial class MainWindow : Window
         }
         StatusTextBlock.Text = $"Selected {item.FileName}.";
         AppendDebugDump($"UI selected receipt: {item.FullPath}");
+        UpdateActionButtonsEnabled();
     }
 
     private async void AnalyzeButton_Click(object sender, RoutedEventArgs e)
@@ -248,7 +254,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        SetAnalysisButtonsEnabled(false);
+        _isAnalyzeAllRunning = true;
+        UpdateActionButtonsEnabled();
         try
         {
             foreach (var item in pendingItems)
@@ -261,7 +268,8 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetAnalysisButtonsEnabled(true);
+            _isAnalyzeAllRunning = false;
+            UpdateActionButtonsEnabled();
         }
     }
 
@@ -280,7 +288,7 @@ public partial class MainWindow : Window
         MoveToNextReceipt();
     }
 
-    private async void ConfirmSelectedOcrReview()
+    private void ConfirmSelectedOcrReview()
     {
         if (_isReviewActionCoolingDown)
         {
@@ -294,7 +302,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (item.Status != ReceiptQueueStatus.OcrReview)
+        if (item.Status != ReceiptQueueStatus.OcrReview || item.IsSemanticParsing)
         {
             StatusTextBlock.Text = "Shift+Enter only confirms OCR Review receipts.";
             return;
@@ -306,36 +314,50 @@ public partial class MainWindow : Window
             return;
         }
 
-        _isReviewActionCoolingDown = true;
-        SetAnalysisButtonsEnabled(false);
-        StatusTextBlock.Text = $"{item.FileName} OCR confirmed. Parsing fields...";
+        var analysisResult = item.AnalysisResult;
+        item.IsSemanticParsing = true;
+        StatusTextBlock.Text = $"{item.FileName} OCR confirmed. Field parsing started.";
         AppendDebugDump($"UI OCR review confirmed; semantic parse requested: {item.FullPath}");
+        UpdateActionButtonsEnabled();
+        StartReviewActionCooldown();
+        _ = ParseSemanticForReceiptAsync(item, analysisResult);
+        MoveToNextReceipt();
+    }
 
+    private async Task ParseSemanticForReceiptAsync(ReceiptImageItem item, ReceiptAnalysisResult analysisResult)
+    {
         try
         {
-            var semanticResult = await _workerClient.ParseSemanticAsync(item.AnalysisResult.OcrItems);
-            item.AnalysisResult = item.AnalysisResult with
+            var semanticResult = await _workerClient.ParseSemanticAsync(analysisResult.OcrItems);
+            item.AnalysisResult = analysisResult with
             {
                 SemanticFields = semanticResult.SemanticFields,
                 ReviewFields = BuildReviewedFields(semanticResult.SemanticFields),
                 SemanticStatus = semanticResult.SemanticStatus
             };
-            PopulateFieldReviewItems(item.AnalysisResult);
             item.Status = ReceiptQueueStatus.FieldReview;
-            StatusTextBlock.Text = $"{item.FileName} fields parsed. Awaiting field review.";
             AppendDebugDump($"UI semantic parse attached: status={semanticResult.SemanticStatus.Status}, path={item.FullPath}");
-            MoveToNextReceipt();
+
+            if (IsSelectedReceipt(item))
+            {
+                PopulateFieldReviewItems(item.AnalysisResult);
+                StatusTextBlock.Text = $"{item.FileName} fields parsed. Awaiting field review.";
+            }
         }
         catch (Exception ex)
         {
             item.Status = ReceiptQueueStatus.Error;
-            StatusTextBlock.Text = $"{item.FileName} field parsing failed. Check Debug Dump.";
             AppendDebugDump($"UI semantic parse failed: {ex}");
+
+            if (IsSelectedReceipt(item))
+            {
+                StatusTextBlock.Text = $"{item.FileName} field parsing failed. Check Debug Dump.";
+            }
         }
         finally
         {
-            SetAnalysisButtonsEnabled(true);
-            StartReviewActionCooldown();
+            item.IsSemanticParsing = false;
+            UpdateActionButtonsEnabled();
         }
     }
 
@@ -380,8 +402,7 @@ public partial class MainWindow : Window
         finally
         {
             _isReviewActionCoolingDown = false;
-            ConfirmOcrButton.IsEnabled = AnalyzeButton.IsEnabled;
-            ApproveFieldsButton.IsEnabled = AnalyzeButton.IsEnabled;
+            UpdateActionButtonsEnabled();
         }
     }
 
@@ -407,16 +428,18 @@ public partial class MainWindow : Window
         ImageListBox.Focus();
         StatusTextBlock.Text = $"Moved to {_images[nextIndex].FileName}.";
         AppendDebugDump($"UI moved to next receipt: index={nextIndex}, path={_images[nextIndex].FullPath}");
+        UpdateActionButtonsEnabled();
     }
 
     private async Task AnalyzeItemAsync(ReceiptImageItem item, bool manageButtons = true)
     {
         if (manageButtons)
         {
-            SetAnalysisButtonsEnabled(false);
+            UpdateActionButtonsEnabled();
         }
 
         item.Status = ReceiptQueueStatus.Processing;
+        UpdateActionButtonsEnabled();
         StatusTextBlock.Text = $"Analyzing {item.FileName}...";
         AppendDebugDump($"UI analyze started: {item.FullPath}");
 
@@ -444,18 +467,25 @@ public partial class MainWindow : Window
         {
             if (manageButtons)
             {
-                SetAnalysisButtonsEnabled(true);
+                UpdateActionButtonsEnabled();
             }
         }
     }
 
-    private void SetAnalysisButtonsEnabled(bool isEnabled)
+    private void UpdateActionButtonsEnabled()
     {
-        AnalyzeButton.IsEnabled = isEnabled;
-        AnalyzeAllPendingButton.IsEnabled = isEnabled;
-        ConfirmOcrButton.IsEnabled = isEnabled;
-        ApproveFieldsButton.IsEnabled = isEnabled;
-        NextReceiptButton.IsEnabled = isEnabled;
+        var selectedItem = ImageListBox.SelectedItem as ReceiptImageItem;
+        var canUseWorker = _isOcrWorkerReady && !_isAnalyzeAllRunning;
+        var hasPendingItems = _images.Any(item => item.Status == ReceiptQueueStatus.Pending);
+
+        AnalyzeButton.IsEnabled = canUseWorker &&
+                                  selectedItem is { Status: ReceiptQueueStatus.Pending, IsSemanticParsing: false };
+        AnalyzeAllPendingButton.IsEnabled = _isOcrWorkerReady && !_isAnalyzeAllRunning && hasPendingItems;
+        ConfirmOcrButton.IsEnabled = selectedItem is { Status: ReceiptQueueStatus.OcrReview, IsSemanticParsing: false } &&
+                                     !_isReviewActionCoolingDown;
+        ApproveFieldsButton.IsEnabled = selectedItem is { Status: ReceiptQueueStatus.FieldReview, IsSemanticParsing: false } &&
+                                        !_isReviewActionCoolingDown;
+        NextReceiptButton.IsEnabled = _images.Count > 0;
     }
 
     private void ReceiptScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -534,6 +564,11 @@ public partial class MainWindow : Window
         {
             Dispatcher.BeginInvoke(() => SyncFieldReviewItemsToReceipt(receipt), DispatcherPriority.Background);
         }
+    }
+
+    private bool IsSelectedReceipt(ReceiptImageItem item)
+    {
+        return ReferenceEquals(ImageListBox.SelectedItem, item);
     }
 
     private void OcrResultListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)

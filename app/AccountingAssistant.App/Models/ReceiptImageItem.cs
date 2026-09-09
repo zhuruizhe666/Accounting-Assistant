@@ -10,6 +10,7 @@ public sealed class ReceiptImageItem : INotifyPropertyChanged
 {
     private ReceiptQueueStatus _status = ReceiptQueueStatus.Pending;
     private ReceiptAnalysisResult? _analysisResult;
+    private bool _isSemanticParsing;
 
     public ReceiptImageItem(string fullPath)
     {
@@ -54,8 +55,26 @@ public sealed class ReceiptImageItem : INotifyPropertyChanged
         }
     }
 
+    public bool IsSemanticParsing
+    {
+        get => _isSemanticParsing;
+        set
+        {
+            if (_isSemanticParsing == value)
+            {
+                return;
+            }
+
+            _isSemanticParsing = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(StatusBrush));
+        }
+    }
+
     public string StatusText => Status switch
     {
+        _ when IsSemanticParsing => "Parsing Fields",
         ReceiptQueueStatus.Pending => "Pending",
         ReceiptQueueStatus.Processing => "Processing",
         ReceiptQueueStatus.OcrReview => "OCR Review",
@@ -67,6 +86,7 @@ public sealed class ReceiptImageItem : INotifyPropertyChanged
 
     public MediaBrush StatusBrush => Status switch
     {
+        _ when IsSemanticParsing => MediaBrushes.LightSkyBlue,
         ReceiptQueueStatus.Pending => MediaBrushes.Gray,
         ReceiptQueueStatus.Processing => MediaBrushes.LightSkyBlue,
         ReceiptQueueStatus.OcrReview => MediaBrushes.Orange,
