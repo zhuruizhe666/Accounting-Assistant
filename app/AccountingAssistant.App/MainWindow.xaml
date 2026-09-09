@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Accounting Assistant" Height="760" Width="1160" MinHeight="640" MinWidth="980">
     <Window.InputBindings>
-        <KeyBinding Key="Enter" Modifiers="Shift" Command="{Binding MarkCensoredCommand}" />
+        <KeyBinding Key="Enter" Modifiers="Shift" Command="{Binding ConfirmOcrCommand}" />
+        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding ApproveFieldsCommand}" />
         <KeyBinding Key="Down" Modifiers="Shift" Command="{Binding NextReceiptCommand}" />
     </Window.InputBindings>
 
@@ -121,19 +122,25 @@
             <TextBlock DockPanel.Dock="Left"
                        VerticalAlignment="Center"
                        Foreground="#777777"
-                       Text="Shift+Enter marks censored. Shift+Down moves to next receipt." />
+                       Text="Shift+Enter confirms OCR review. Ctrl+Enter approves fields. Shift+Down moves to next receipt." />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="NextReceiptButton"
                         Content="Next Receipt"
                         Width="130"
                         Height="34"
                         Click="NextReceiptButton_Click" />
-                <Button x:Name="MarkCensoredButton"
-                        Content="Mark Censored"
+                <Button x:Name="ConfirmOcrButton"
+                        Content="Confirm OCR"
                         Width="130"
                         Height="34"
                         Margin="8,0,0,0"
-                        Click="MarkCensoredButton_Click" />
+                        Click="ConfirmOcrButton_Click" />
+                <Button x:Name="ApproveFieldsButton"
+                        Content="Approve Fields"
+                        Width="130"
+                        Height="34"
+                        Margin="8,0,0,0"
+                        Click="ApproveFieldsButton_Click" />
             </StackPanel>
         </DockPanel>
     </Grid>

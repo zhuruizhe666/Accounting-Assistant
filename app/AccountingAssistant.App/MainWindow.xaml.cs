@@ -23,15 +23,18 @@ public partial class MainWindow : Window
 
     private readonly ObservableCollection<ReceiptImageItem> _images = [];
     private readonly PythonWorkerClient _workerClient = new();
-    private bool _isMarkCensoredCoolingDown;
+    private bool _isReviewActionCoolingDown;
 
-    public ICommand MarkCensoredCommand { get; }
+    public ICommand ConfirmOcrCommand { get; }
+
+    public ICommand ApproveFieldsCommand { get; }
 
     public ICommand NextReceiptCommand { get; }
 
     public MainWindow()
     {
-        MarkCensoredCommand = new RelayCommand(_ => MarkSelectedCensored());
+        ConfirmOcrCommand = new RelayCommand(_ => ConfirmSelectedOcrReview());
+        ApproveFieldsCommand = new RelayCommand(_ => ApproveSelectedFields());
         NextReceiptCommand = new RelayCommand(_ => MoveToNextReceipt());
 
         InitializeComponent();
@@ -224,7 +227,7 @@ public partial class MainWindow : Window
                 await AnalyzeItemAsync(item, manageButtons: false);
             }
 
-            StatusTextBlock.Text = $"Analyzed {pendingItems.Count} pending image(s).";
+            StatusTextBlock.Text = $"Processed {pendingItems.Count} pending image(s).";
         }
         finally
         {
@@ -232,9 +235,14 @@ public partial class MainWindow : Window
         }
     }
 
-    private void MarkCensoredButton_Click(object sender, RoutedEventArgs e)
+    private void ConfirmOcrButton_Click(object sender, RoutedEventArgs e)
     {
-        MarkSelectedCensored();
+        ConfirmSelectedOcrReview();
+    }
+
+    private void ApproveFieldsButton_Click(object sender, RoutedEventArgs e)
+    {
+        ApproveSelectedFields();
     }
 
     private void NextReceiptButton_Click(object sender, RoutedEventArgs e)
@@ -242,37 +250,65 @@ public partial class MainWindow : Window
         MoveToNextReceipt();
     }
 
-    private void MarkSelectedCensored()
+    private void ConfirmSelectedOcrReview()
     {
-        if (_isMarkCensoredCoolingDown)
+        if (_isReviewActionCoolingDown)
         {
-            StatusTextBlock.Text = "Mark Censored is cooling down.";
+            StatusTextBlock.Text = "Review action is cooling down.";
             return;
         }
 
         if (ImageListBox.SelectedItem is not ReceiptImageItem item)
         {
-            StatusTextBlock.Text = "Select an analyzed image first.";
+            StatusTextBlock.Text = "Select a receipt in OCR Review first.";
             return;
         }
 
-        if (item.Status != ReceiptQueueStatus.Analyzed)
+        if (item.Status != ReceiptQueueStatus.OcrReview)
         {
-            StatusTextBlock.Text = "Only analyzed images can be marked censored.";
+            StatusTextBlock.Text = "Shift+Enter only confirms OCR Review receipts.";
             return;
         }
 
-        item.Status = ReceiptQueueStatus.Censored;
-        StatusTextBlock.Text = $"{item.FileName} marked censored.";
-        AppendDebugDump($"UI receipt marked censored: {item.FullPath}");
-        StartMarkCensoredCooldown();
+        item.Status = ReceiptQueueStatus.FieldReview;
+        StatusTextBlock.Text = $"{item.FileName} OCR review confirmed. Awaiting field review.";
+        AppendDebugDump($"UI OCR review confirmed: {item.FullPath}");
+        StartReviewActionCooldown();
         MoveToNextReceipt();
     }
 
-    private async void StartMarkCensoredCooldown()
+    private void ApproveSelectedFields()
     {
-        _isMarkCensoredCoolingDown = true;
-        MarkCensoredButton.IsEnabled = false;
+        if (_isReviewActionCoolingDown)
+        {
+            StatusTextBlock.Text = "Review action is cooling down.";
+            return;
+        }
+
+        if (ImageListBox.SelectedItem is not ReceiptImageItem item)
+        {
+            StatusTextBlock.Text = "Select a receipt in Field Review first.";
+            return;
+        }
+
+        if (item.Status != ReceiptQueueStatus.FieldReview)
+        {
+            StatusTextBlock.Text = "Ctrl+Enter only approves Field Review receipts.";
+            return;
+        }
+
+        item.Status = ReceiptQueueStatus.Approved;
+        StatusTextBlock.Text = $"{item.FileName} approved.";
+        AppendDebugDump($"UI field review approved: {item.FullPath}");
+        StartReviewActionCooldown();
+        MoveToNextReceipt();
+    }
+
+    private async void StartReviewActionCooldown()
+    {
+        _isReviewActionCoolingDown = true;
+        ConfirmOcrButton.IsEnabled = false;
+        ApproveFieldsButton.IsEnabled = false;
 
         try
         {
@@ -280,8 +316,9 @@ public partial class MainWindow : Window
         }
         finally
         {
-            _isMarkCensoredCoolingDown = false;
-            MarkCensoredButton.IsEnabled = AnalyzeButton.IsEnabled;
+            _isReviewActionCoolingDown = false;
+            ConfirmOcrButton.IsEnabled = AnalyzeButton.IsEnabled;
+            ApproveFieldsButton.IsEnabled = AnalyzeButton.IsEnabled;
         }
     }
 
@@ -326,8 +363,8 @@ public partial class MainWindow : Window
             item.AnalysisResult = result;
             ResultTextBox.Text = JsonSerializer.Serialize(result, JsonOptions);
             RenderOcrHighlights(result);
-            item.Status = ReceiptQueueStatus.Analyzed;
-            StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting human review.";
+            item.Status = ReceiptQueueStatus.OcrReview;
+            StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting OCR review.";
             AppendDebugDump($"UI analyze completed: ocr_items={result.OcrItems.Count}, semantic_status={result.SemanticStatus?.Status ?? "none"}.");
         }
         catch (Exception ex)
@@ -350,7 +387,8 @@ public partial class MainWindow : Window
     {
         AnalyzeButton.IsEnabled = isEnabled;
         AnalyzeAllPendingButton.IsEnabled = isEnabled;
-        MarkCensoredButton.IsEnabled = isEnabled;
+        ConfirmOcrButton.IsEnabled = isEnabled;
+        ApproveFieldsButton.IsEnabled = isEnabled;
         NextReceiptButton.IsEnabled = isEnabled;
     }
 
