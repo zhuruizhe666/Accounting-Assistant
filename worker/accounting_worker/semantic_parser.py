@@ -74,7 +74,9 @@ def build_prompt(ocr_items: list[dict[str, Any]]) -> str:
     compact_items = [
         {
             "index": index,
-            "text": item.get("text", ""),
+            "text": item.get("corrected_text") or item.get("text", ""),
+            "original_text": item.get("text", ""),
+            "was_corrected": bool(item.get("corrected_text")),
             "confidence": item.get("confidence", 0),
             "bbox": item.get("bbox", []),
         }

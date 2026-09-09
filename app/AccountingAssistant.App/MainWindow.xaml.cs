@@ -255,7 +255,7 @@ public partial class MainWindow : Window
         MoveToNextReceipt();
     }
 
-    private void ConfirmSelectedOcrReview()
+    private async void ConfirmSelectedOcrReview()
     {
         if (_isReviewActionCoolingDown)
         {
@@ -275,11 +275,41 @@ public partial class MainWindow : Window
             return;
         }
 
-        item.Status = ReceiptQueueStatus.FieldReview;
-        StatusTextBlock.Text = $"{item.FileName} OCR review confirmed. Awaiting field review.";
-        AppendDebugDump($"UI OCR review confirmed: {item.FullPath}");
-        StartReviewActionCooldown();
-        MoveToNextReceipt();
+        if (item.AnalysisResult is null)
+        {
+            StatusTextBlock.Text = "Current receipt has no OCR result to confirm.";
+            return;
+        }
+
+        _isReviewActionCoolingDown = true;
+        SetAnalysisButtonsEnabled(false);
+        StatusTextBlock.Text = $"{item.FileName} OCR confirmed. Parsing fields...";
+        AppendDebugDump($"UI OCR review confirmed; semantic parse requested: {item.FullPath}");
+
+        try
+        {
+            var semanticResult = await _workerClient.ParseSemanticAsync(item.AnalysisResult.OcrItems);
+            item.AnalysisResult = item.AnalysisResult with
+            {
+                SemanticFields = semanticResult.SemanticFields,
+                SemanticStatus = semanticResult.SemanticStatus
+            };
+            item.Status = ReceiptQueueStatus.FieldReview;
+            StatusTextBlock.Text = $"{item.FileName} fields parsed. Awaiting field review.";
+            AppendDebugDump($"UI semantic parse attached: status={semanticResult.SemanticStatus.Status}, path={item.FullPath}");
+            MoveToNextReceipt();
+        }
+        catch (Exception ex)
+        {
+            item.Status = ReceiptQueueStatus.Error;
+            StatusTextBlock.Text = $"{item.FileName} field parsing failed. Check Debug Dump.";
+            AppendDebugDump($"UI semantic parse failed: {ex}");
+        }
+        finally
+        {
+            SetAnalysisButtonsEnabled(true);
+            StartReviewActionCooldown();
+        }
     }
 
     private void ApproveSelectedFields()
@@ -370,7 +400,7 @@ public partial class MainWindow : Window
             RenderOcrHighlights(result);
             item.Status = ReceiptQueueStatus.OcrReview;
             StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting OCR review.";
-            AppendDebugDump($"UI analyze completed: ocr_items={result.OcrItems.Count}, semantic_status={result.SemanticStatus?.Status ?? "none"}.");
+            AppendDebugDump($"UI analyze completed: ocr_items={result.OcrItems.Count}. Waiting for OCR review before semantic parsing.");
         }
         catch (Exception ex)
         {
@@ -422,6 +452,27 @@ public partial class MainWindow : Window
         {
             RenderOcrHighlights(receipt.AnalysisResult);
         }
+    }
+
+    private void OcrResultListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (OcrResultListBox.SelectedItem is not OcrDisplayItem item ||
+            ImageListBox.SelectedItem is not ReceiptImageItem { AnalysisResult: not null } receipt)
+        {
+            return;
+        }
+
+        var dialog = new EditOcrTextDialog(item.Index, item.Text)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        UpdateOcrTextCorrection(receipt, item.Index, dialog.EditedText);
     }
 
     private void UpdateReceiptImageLayout()
@@ -555,10 +606,35 @@ public partial class MainWindow : Window
         {
             _ocrDisplayItems.Add(new OcrDisplayItem(
                 index,
-                item.Text,
+                item.DisplayText,
                 item.Confidence,
-                $"{item.Confidence:P0}"));
+                $"{item.Confidence:P0}",
+                item.IsCorrected));
         }
+    }
+
+    private void UpdateOcrTextCorrection(ReceiptImageItem receipt, int ocrIndex, string editedText)
+    {
+        var result = receipt.AnalysisResult;
+        if (result is null || ocrIndex < 0 || ocrIndex >= result.OcrItems.Count)
+        {
+            return;
+        }
+
+        var ocrItems = result.OcrItems.ToList();
+        var original = ocrItems[ocrIndex];
+        var normalizedEdit = editedText.Trim();
+        var correctedText = normalizedEdit == original.Text ? null : normalizedEdit;
+        ocrItems[ocrIndex] = original with { CorrectedText = correctedText };
+
+        receipt.AnalysisResult = result with { OcrItems = ocrItems };
+        _selectedOcrIndex = ocrIndex;
+        PopulateOcrDisplayItems(receipt.AnalysisResult);
+        SelectOcrDisplayItem(ocrIndex);
+        RenderOcrHighlights(receipt.AnalysisResult);
+
+        StatusTextBlock.Text = $"{receipt.FileName} OCR text updated at index {ocrIndex}.";
+        AppendDebugDump($"UI OCR text edited: path={receipt.FullPath}, index={ocrIndex}, corrected={ocrItems[ocrIndex].IsCorrected}.");
     }
 
     private static OcrHighlightStyle GetOcrHighlightStyle(decimal confidence, bool isSelected)

@@ -97,6 +97,51 @@ public sealed class PythonWorkerClient : IDisposable
         }
     }
 
+    public async Task<SemanticAnalysisResult> ParseSemanticAsync(IReadOnlyList<OcrItem> ocrItems, CancellationToken cancellationToken = default)
+    {
+        await _requestLock.WaitAsync(cancellationToken);
+        try
+        {
+            OnDebugOutput($"C# semantic parse requested: ocr_items={ocrItems.Count}");
+            EnsureServeProcessStarted();
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(AnalyzeTimeout);
+
+            var responseLine = await SendServeRequestAsync(new
+            {
+                command = "semantic",
+                ocr_items = ocrItems.Select(item => new
+                {
+                    text = item.Text,
+                    corrected_text = item.CorrectedText,
+                    confidence = item.Confidence,
+                    bbox = item.BBox
+                }).ToList()
+            }, timeoutCts.Token);
+
+            var result = JsonSerializer.Deserialize<SemanticAnalysisResult>(responseLine, JsonOptions)
+                ?? throw new InvalidOperationException("Python worker returned invalid semantic JSON.");
+
+            if (string.Equals(result.Status, "error", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Python worker semantic error: {result.Error}");
+            }
+
+            OnDebugOutput($"C# semantic parse completed: status={result.SemanticStatus.Status}");
+            return result;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            RestartServeProcess();
+            throw new TimeoutException($"Python worker exceeded the {AnalyzeTimeout.TotalMinutes:0}-minute semantic timeout.");
+        }
+        finally
+        {
+            _requestLock.Release();
+        }
+    }
+
     private async Task<string> SendServeRequestAsync<TRequest>(TRequest requestObject, CancellationToken cancellationToken)
     {
         var request = JsonSerializer.Serialize(requestObject);

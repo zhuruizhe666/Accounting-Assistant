@@ -4,4 +4,8 @@ public sealed record OcrDisplayItem(
     int Index,
     string Text,
     decimal Confidence,
-    string ConfidenceText);
+    string ConfidenceText,
+    bool IsCorrected = false)
+{
+    public string CorrectionStatus => IsCorrected ? "Edited" : string.Empty;
+}

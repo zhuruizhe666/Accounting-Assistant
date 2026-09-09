@@ -14,7 +14,13 @@ public sealed record ReceiptAnalysisResult(
 public sealed record OcrItem(
     [property: JsonPropertyName("text")] string Text,
     [property: JsonPropertyName("confidence")] decimal Confidence,
-    [property: JsonPropertyName("bbox")] IReadOnlyList<IReadOnlyList<int>> BBox);
+    [property: JsonPropertyName("bbox")] IReadOnlyList<IReadOnlyList<int>> BBox,
+    [property: JsonPropertyName("corrected_text")] string? CorrectedText = null)
+{
+    public string DisplayText => string.IsNullOrWhiteSpace(CorrectedText) ? Text : CorrectedText;
+
+    public bool IsCorrected => !string.IsNullOrWhiteSpace(CorrectedText) && CorrectedText != Text;
+}
 
 public sealed record FieldCandidate(
     [property: JsonPropertyName("value")] string Value,
@@ -33,3 +39,9 @@ public sealed record SemanticStatus(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("model")] string? Model = null,
     [property: JsonPropertyName("reason")] string? Reason = null);
+
+public sealed record SemanticAnalysisResult(
+    [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("semantic_fields")] Dictionary<string, IReadOnlyList<SemanticField>> SemanticFields,
+    [property: JsonPropertyName("semantic_status")] SemanticStatus SemanticStatus,
+    [property: JsonPropertyName("error")] string? Error = null);

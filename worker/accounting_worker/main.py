@@ -43,15 +43,29 @@ def analyze_image(image_path: Path, *, use_mock: bool) -> dict:
         log("ocr step started")
         ocr_items = run_primary_ocr(image_path)
         log(f"ocr step completed: {len(ocr_items)} item(s)")
-        log("semantic step started")
-        semantic_fields, semantic_status = parse_semantic_fields(ocr_items)
-        log(f"semantic step completed: {semantic_status.get('status')}")
 
     return {
         "image_path": str(image_path),
         "status": "ok",
         "ocr_items": ocr_items,
         "candidates": extract_candidates(ocr_items),
+        "semantic_fields": {},
+        "semantic_status": {
+            "engine": "ollama",
+            "status": "pending_ocr_review",
+            "reason": "semantic parsing runs after OCR review is confirmed",
+        },
+    }
+
+
+def parse_semantics_for_reviewed_ocr(ocr_items: list[dict]) -> dict:
+    with contextlib.redirect_stdout(sys.stderr):
+        log(f"semantic step started after OCR review: ocr_items={len(ocr_items)}")
+        semantic_fields, semantic_status = parse_semantic_fields(ocr_items)
+        log(f"semantic step completed: {semantic_status.get('status')}")
+
+    return {
+        "status": "ok",
         "semantic_fields": semantic_fields,
         "semantic_status": semantic_status,
     }
@@ -84,6 +98,8 @@ def serve() -> int:
                     Path(request["image_path"]),
                     use_mock=bool(request.get("mock", False)),
                 )
+            elif command == "semantic":
+                result = parse_semantics_for_reviewed_ocr(request.get("ocr_items", []))
             else:
                 raise ValueError(f"Unknown serve command: {command}")
         except Exception as exc:

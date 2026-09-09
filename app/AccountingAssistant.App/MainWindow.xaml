@@ -92,7 +92,8 @@
 
                     <ListBox x:Name="OcrResultListBox"
                              Grid.Row="0"
-                             SelectionChanged="OcrResultListBox_SelectionChanged">
+                             SelectionChanged="OcrResultListBox_SelectionChanged"
+                             MouseDoubleClick="OcrResultListBox_MouseDoubleClick">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="4,3">
@@ -100,6 +101,7 @@
                                         <ColumnDefinition Width="36" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="64" />
+                                        <ColumnDefinition Width="48" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0"
                                                Text="{Binding Index}"
@@ -113,6 +115,13 @@
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding ConfidenceText}"
                                                Foreground="#555555"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Top" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding CorrectionStatus}"
+                                               Foreground="#8A6500"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
                                                HorizontalAlignment="Right"
                                                VerticalAlignment="Top" />
                                 </Grid>
