@@ -9,6 +9,7 @@ namespace AccountingAssistant.App.Models;
 public sealed class ReceiptImageItem : INotifyPropertyChanged
 {
     private ReceiptQueueStatus _status = ReceiptQueueStatus.Pending;
+    private ReceiptAnalysisResult? _analysisResult;
 
     public ReceiptImageItem(string fullPath)
     {
@@ -35,6 +36,21 @@ public sealed class ReceiptImageItem : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(StatusBrush));
+        }
+    }
+
+    public ReceiptAnalysisResult? AnalysisResult
+    {
+        get => _analysisResult;
+        set
+        {
+            if (ReferenceEquals(_analysisResult, value))
+            {
+                return;
+            }
+
+            _analysisResult = value;
+            OnPropertyChanged();
         }
     }
 

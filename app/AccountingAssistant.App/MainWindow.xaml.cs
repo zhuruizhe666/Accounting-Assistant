@@ -24,7 +24,6 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<ReceiptImageItem> _images = [];
     private readonly PythonWorkerClient _workerClient = new();
     private bool _isMarkCensoredCoolingDown;
-    private ReceiptAnalysisResult? _lastAnalysisResult;
 
     public ICommand MarkCensoredCommand { get; }
 
@@ -172,15 +171,23 @@ public partial class MainWindow : Window
         if (ImageListBox.SelectedItem is not ReceiptImageItem item)
         {
             ReceiptImage.Source = null;
-            _lastAnalysisResult = null;
             OcrOverlayCanvas.Children.Clear();
+            ResultTextBox.Clear();
             return;
         }
 
         ReceiptImage.Source = LoadBitmap(item.FullPath);
-        _lastAnalysisResult = null;
         UpdateReceiptImageLayout();
-        OcrOverlayCanvas.Children.Clear();
+        if (item.AnalysisResult is not null)
+        {
+            ResultTextBox.Text = JsonSerializer.Serialize(item.AnalysisResult, JsonOptions);
+            RenderOcrHighlights(item.AnalysisResult);
+        }
+        else
+        {
+            ResultTextBox.Clear();
+            OcrOverlayCanvas.Children.Clear();
+        }
         StatusTextBlock.Text = $"Selected {item.FileName}.";
         AppendDebugDump($"UI selected receipt: {item.FullPath}");
     }
@@ -316,8 +323,8 @@ public partial class MainWindow : Window
         try
         {
             var result = await _workerClient.AnalyzeAsync(item.FullPath);
+            item.AnalysisResult = result;
             ResultTextBox.Text = JsonSerializer.Serialize(result, JsonOptions);
-            _lastAnalysisResult = result;
             RenderOcrHighlights(result);
             item.Status = ReceiptQueueStatus.Analyzed;
             StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting human review.";
@@ -351,9 +358,9 @@ public partial class MainWindow : Window
     {
         UpdateReceiptImageLayout();
 
-        if (_lastAnalysisResult is not null)
+        if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } item)
         {
-            RenderOcrHighlights(_lastAnalysisResult);
+            RenderOcrHighlights(item.AnalysisResult);
         }
     }
 
