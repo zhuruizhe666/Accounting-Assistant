@@ -8,6 +8,7 @@ public sealed record ReceiptAnalysisResult(
     [property: JsonPropertyName("ocr_items")] IReadOnlyList<OcrItem> OcrItems,
     [property: JsonPropertyName("candidates")] Dictionary<string, IReadOnlyList<FieldCandidate>> Candidates,
     [property: JsonPropertyName("semantic_fields")] Dictionary<string, IReadOnlyList<SemanticField>>? SemanticFields = null,
+    [property: JsonPropertyName("review_fields")] Dictionary<string, ReviewedField>? ReviewFields = null,
     [property: JsonPropertyName("semantic_status")] SemanticStatus? SemanticStatus = null,
     [property: JsonPropertyName("error")] string? Error = null);
 
@@ -39,6 +40,12 @@ public sealed record SemanticStatus(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("model")] string? Model = null,
     [property: JsonPropertyName("reason")] string? Reason = null);
+
+public sealed record ReviewedField(
+    [property: JsonPropertyName("value")] string Value,
+    [property: JsonPropertyName("confidence")] decimal Confidence,
+    [property: JsonPropertyName("ocr_refs")] IReadOnlyList<int> OcrRefs,
+    [property: JsonPropertyName("source")] string Source);
 
 public sealed record SemanticAnalysisResult(
     [property: JsonPropertyName("status")] string Status,

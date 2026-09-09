@@ -84,51 +84,93 @@
                 </ScrollViewer>
             </Border>
 
-            <GroupBox Grid.Column="2" Header="Recognized Text" Margin="12,0,0,0">
+            <GroupBox Grid.Column="2" Header="Review Panel" Margin="12,0,0,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <ListBox x:Name="OcrResultListBox"
-                             Grid.Row="0"
-                             SelectionChanged="OcrResultListBox_SelectionChanged"
-                             MouseDoubleClick="OcrResultListBox_MouseDoubleClick">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="4,3">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="36" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="64" />
-                                        <ColumnDefinition Width="48" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0"
-                                               Text="{Binding Index}"
-                                               Foreground="#777777"
-                                               VerticalAlignment="Top" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding Text}"
-                                               TextWrapping="Wrap"
-                                               FontSize="14"
-                                               Margin="4,0,8,0" />
-                                    <TextBlock Grid.Column="2"
-                                               Text="{Binding ConfidenceText}"
-                                               Foreground="#555555"
-                                               HorizontalAlignment="Right"
-                                               VerticalAlignment="Top" />
-                                    <TextBlock Grid.Column="3"
-                                               Text="{Binding CorrectionStatus}"
-                                               Foreground="#8A6500"
-                                               FontSize="11"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Right"
-                                               VerticalAlignment="Top" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <TabControl Grid.Row="0">
+                        <TabItem Header="OCR">
+                            <ListBox x:Name="OcrResultListBox"
+                                     SelectionChanged="OcrResultListBox_SelectionChanged"
+                                     MouseDoubleClick="OcrResultListBox_MouseDoubleClick">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="36" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="64" />
+                                                <ColumnDefinition Width="48" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding Index}"
+                                                       Foreground="#777777"
+                                                       VerticalAlignment="Top" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Text}"
+                                                       TextWrapping="Wrap"
+                                                       FontSize="14"
+                                                       Margin="4,0,8,0" />
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding ConfidenceText}"
+                                                       Foreground="#555555"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Top" />
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding CorrectionStatus}"
+                                                       Foreground="#8A6500"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Top" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+
+                        <TabItem Header="Fields">
+                            <ListBox x:Name="FieldReviewListBox"
+                                     SelectionChanged="FieldReviewListBox_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,6">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="110" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.Column="0"
+                                                       Text="{Binding Label}"
+                                                       Foreground="#555555"
+                                                       VerticalAlignment="Center" />
+                                            <ComboBox Grid.Row="0"
+                                                      Grid.Column="1"
+                                                      IsEditable="True"
+                                                      IsTextSearchEnabled="True"
+                                                      ItemsSource="{Binding Suggestions}"
+                                                      Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      LostFocus="FieldValueComboBox_LostFocus"
+                                                      SelectionChanged="FieldValueComboBox_SelectionChanged" />
+                                            <TextBlock Grid.Row="1"
+                                                       Grid.Column="1"
+                                                       Text="{Binding ReviewNote}"
+                                                       FontSize="11"
+                                                       Foreground="#777777"
+                                                       Margin="0,2,0,0" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+                    </TabControl>
 
                     <Expander Grid.Row="1"
                               Header="Debug Dump"

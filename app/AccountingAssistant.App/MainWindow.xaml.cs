@@ -17,6 +17,22 @@ namespace AccountingAssistant.App;
 
 public partial class MainWindow : Window
 {
+    private static readonly FieldDefinition[] FieldDefinitions =
+    [
+        new("document_type", "票据类型"),
+        new("document_number", "单据号"),
+        new("issue_date", "日期"),
+        new("counterparty_name", "交易方"),
+        new("total_amount", "总金额"),
+        new("tax_amount", "税额"),
+        new("expense_category", "费用类别"),
+        new("project_name", "项目名"),
+        new("department", "部门"),
+        new("handler", "经办人"),
+        new("summary", "摘要"),
+        new("notes", "备注")
+    ];
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true
@@ -24,10 +40,12 @@ public partial class MainWindow : Window
 
     private readonly ObservableCollection<ReceiptImageItem> _images = [];
     private readonly ObservableCollection<OcrDisplayItem> _ocrDisplayItems = [];
+    private readonly ObservableCollection<FieldReviewItem> _fieldReviewItems = [];
+    private readonly ProjectProfile _projectProfile;
     private readonly PythonWorkerClient _workerClient = new();
     private bool _isReviewActionCoolingDown;
     private bool _isReceiptLayoutUpdateQueued;
-    private int? _selectedOcrIndex;
+    private HashSet<int> _selectedOcrIndexes = [];
 
     public ICommand ConfirmOcrCommand { get; }
 
@@ -45,6 +63,8 @@ public partial class MainWindow : Window
         DataContext = this;
         ImageListBox.ItemsSource = _images;
         OcrResultListBox.ItemsSource = _ocrDisplayItems;
+        FieldReviewListBox.ItemsSource = _fieldReviewItems;
+        _projectProfile = ProjectProfile.Load(FindRepoRoot(AppContext.BaseDirectory));
         _workerClient.DebugOutputReceived += AppendDebugDump;
         StatusTextBlock.Text = "Ready. Select receipt images to start.";
         Loaded += MainWindow_Loaded;
@@ -181,21 +201,24 @@ public partial class MainWindow : Window
             ReceiptImage.Source = null;
             OcrOverlayCanvas.Children.Clear();
             _ocrDisplayItems.Clear();
-            _selectedOcrIndex = null;
+            _fieldReviewItems.Clear();
+            _selectedOcrIndexes = [];
             return;
         }
 
         ReceiptImage.Source = LoadBitmap(item.FullPath);
-        _selectedOcrIndex = null;
+        _selectedOcrIndexes = [];
         ScheduleReceiptImageLayoutUpdate();
         if (item.AnalysisResult is not null)
         {
             PopulateOcrDisplayItems(item.AnalysisResult);
+            PopulateFieldReviewItems(item.AnalysisResult);
             ScheduleReceiptImageLayoutUpdate();
         }
         else
         {
             _ocrDisplayItems.Clear();
+            _fieldReviewItems.Clear();
             OcrOverlayCanvas.Children.Clear();
         }
         StatusTextBlock.Text = $"Selected {item.FileName}.";
@@ -294,8 +317,10 @@ public partial class MainWindow : Window
             item.AnalysisResult = item.AnalysisResult with
             {
                 SemanticFields = semanticResult.SemanticFields,
+                ReviewFields = BuildReviewedFields(semanticResult.SemanticFields),
                 SemanticStatus = semanticResult.SemanticStatus
             };
+            PopulateFieldReviewItems(item.AnalysisResult);
             item.Status = ReceiptQueueStatus.FieldReview;
             StatusTextBlock.Text = $"{item.FileName} fields parsed. Awaiting field review.";
             AppendDebugDump($"UI semantic parse attached: status={semanticResult.SemanticStatus.Status}, path={item.FullPath}");
@@ -334,6 +359,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        SyncFieldReviewItemsToReceipt(item);
         item.Status = ReceiptQueueStatus.Approved;
         StatusTextBlock.Text = $"{item.FileName} approved.";
         AppendDebugDump($"UI field review approved: {item.FullPath}");
@@ -399,6 +425,7 @@ public partial class MainWindow : Window
             var result = await _workerClient.AnalyzeAsync(item.FullPath);
             item.AnalysisResult = result;
             PopulateOcrDisplayItems(result);
+            PopulateFieldReviewItems(result);
             RenderOcrHighlights(result);
             item.Status = ReceiptQueueStatus.OcrReview;
             StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting OCR review.";
@@ -407,6 +434,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             _ocrDisplayItems.Clear();
+            _fieldReviewItems.Clear();
             _ocrDisplayItems.Add(new OcrDisplayItem(0, "Analysis failed. Open Debug Dump for details.", 0, "Error"));
             item.Status = ReceiptQueueStatus.Error;
             StatusTextBlock.Text = $"{item.FileName} failed. Check worker output.";
@@ -464,15 +492,47 @@ public partial class MainWindow : Window
     {
         if (OcrResultListBox.SelectedItem is not OcrDisplayItem item)
         {
-            _selectedOcrIndex = null;
+            _selectedOcrIndexes = [];
             return;
         }
 
-        _selectedOcrIndex = item.Index;
+        _selectedOcrIndexes = [item.Index];
 
         if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } receipt)
         {
             RenderOcrHighlights(receipt.AnalysisResult);
+        }
+    }
+
+    private void FieldReviewListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (FieldReviewListBox.SelectedItem is not FieldReviewItem item)
+        {
+            _selectedOcrIndexes = [];
+            return;
+        }
+
+        _selectedOcrIndexes = item.OcrRefs.ToHashSet();
+
+        if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } receipt)
+        {
+            RenderOcrHighlights(receipt.AnalysisResult);
+        }
+    }
+
+    private void FieldValueComboBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (ImageListBox.SelectedItem is ReceiptImageItem receipt)
+        {
+            SyncFieldReviewItemsToReceipt(receipt);
+        }
+    }
+
+    private void FieldValueComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ImageListBox.SelectedItem is ReceiptImageItem receipt)
+        {
+            Dispatcher.BeginInvoke(() => SyncFieldReviewItemsToReceipt(receipt), DispatcherPriority.Background);
         }
     }
 
@@ -561,7 +621,7 @@ public partial class MainWindow : Window
             var top = ys.Min() * scaleY;
             var width = Math.Max(1, (xs.Max() - xs.Min()) * scaleX);
             var height = Math.Max(1, (ys.Max() - ys.Min()) * scaleY);
-            var isSelected = _selectedOcrIndex == index;
+            var isSelected = _selectedOcrIndexes.Contains(index);
             var style = GetOcrHighlightStyle(item.Confidence, isSelected);
 
             if (item.Confidence >= 0.90m)
@@ -650,13 +710,80 @@ public partial class MainWindow : Window
         ocrItems[ocrIndex] = original with { CorrectedText = correctedText };
 
         receipt.AnalysisResult = result with { OcrItems = ocrItems };
-        _selectedOcrIndex = ocrIndex;
+        _selectedOcrIndexes = [ocrIndex];
         PopulateOcrDisplayItems(receipt.AnalysisResult);
         SelectOcrDisplayItem(ocrIndex);
         RenderOcrHighlights(receipt.AnalysisResult);
 
         StatusTextBlock.Text = $"{receipt.FileName} OCR text updated at index {ocrIndex}.";
         AppendDebugDump($"UI OCR text edited: path={receipt.FullPath}, index={ocrIndex}, corrected={ocrItems[ocrIndex].IsCorrected}.");
+    }
+
+    private void PopulateFieldReviewItems(ReceiptAnalysisResult result)
+    {
+        _fieldReviewItems.Clear();
+        if (result.ReviewFields is null &&
+            string.Equals(result.SemanticStatus?.Status, "pending_ocr_review", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var reviewFields = result.ReviewFields ?? BuildReviewedFields(result.SemanticFields);
+
+        foreach (var definition in FieldDefinitions)
+        {
+            reviewFields.TryGetValue(definition.FieldName, out var field);
+            _fieldReviewItems.Add(new FieldReviewItem
+            {
+                FieldName = definition.FieldName,
+                Label = definition.Label,
+                Value = field?.Value ?? string.Empty,
+                Confidence = field?.Confidence ?? 0,
+                OcrRefs = field?.OcrRefs ?? [],
+                Suggestions = _projectProfile.GetSuggestions(definition.FieldName)
+            });
+        }
+    }
+
+    private static Dictionary<string, ReviewedField> BuildReviewedFields(Dictionary<string, IReadOnlyList<SemanticField>>? semanticFields)
+    {
+        var reviewFields = new Dictionary<string, ReviewedField>();
+
+        foreach (var definition in FieldDefinitions)
+        {
+            var semanticField = semanticFields is not null &&
+                                semanticFields.TryGetValue(definition.FieldName, out var fields)
+                ? fields.FirstOrDefault()
+                : null;
+
+            reviewFields[definition.FieldName] = new ReviewedField(
+                semanticField?.Value ?? string.Empty,
+                semanticField?.Confidence ?? 0,
+                semanticField?.OcrRefs ?? [],
+                semanticField is null ? "manual" : "semantic");
+        }
+
+        return reviewFields;
+    }
+
+    private void SyncFieldReviewItemsToReceipt(ReceiptImageItem receipt)
+    {
+        var result = receipt.AnalysisResult;
+        if (result is null || _fieldReviewItems.Count == 0)
+        {
+            return;
+        }
+
+        var reviewFields = _fieldReviewItems.ToDictionary(
+            item => item.FieldName,
+            item => new ReviewedField(
+                item.Value.Trim(),
+                item.Confidence,
+                item.OcrRefs,
+                "review"));
+
+        receipt.AnalysisResult = result with { ReviewFields = reviewFields };
+        AppendDebugDump($"UI field review synced: path={receipt.FullPath}, fields={reviewFields.Count}.");
     }
 
     private static OcrHighlightStyle GetOcrHighlightStyle(decimal confidence, bool isSelected)
@@ -709,4 +836,22 @@ public partial class MainWindow : Window
             DebugDumpTextBox.ScrollToEnd();
         });
     }
+
+    private static string FindRepoRoot(string startPath)
+    {
+        var directory = new DirectoryInfo(startPath);
+        while (directory is not null)
+        {
+            if (Directory.Exists(System.IO.Path.Combine(directory.FullName, ".git")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+    }
+
+    private sealed record FieldDefinition(string FieldName, string Label);
 }

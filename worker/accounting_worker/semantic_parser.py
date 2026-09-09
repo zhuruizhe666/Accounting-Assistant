@@ -7,17 +7,17 @@ import urllib.request
 from typing import Any
 
 FIELD_ORDER = [
-    "date",
-    "receipt_no",
-    "customer_name",
-    "merchant_name",
-    "line_items",
-    "subtotal",
-    "tax",
-    "total",
-    "amount_in_words",
-    "cashier",
-    "accountant",
+    "document_type",
+    "document_number",
+    "issue_date",
+    "counterparty_name",
+    "total_amount",
+    "tax_amount",
+    "expense_category",
+    "project_name",
+    "department",
+    "handler",
+    "summary",
     "notes",
 ]
 
@@ -94,9 +94,12 @@ def build_prompt(ocr_items: list[dict[str, Any]]) -> str:
         "Return exactly this JSON shape:\n"
         "{\n"
         '  "fields": [\n'
-        '    {"field":"date","value":"string","ocr_refs":[0],"confidence":0.0,"reason":"short reason"}\n'
+        '    {"field":"issue_date","value":"string","ocr_refs":[0],"confidence":0.0,"reason":"short reason"}\n'
         "  ]\n"
         "}\n"
+        "Use document_number for invoice numbers, receipt numbers, and bill numbers.\n"
+        "Use counterparty_name for the visible trading party most relevant to accounting review.\n"
+        "Use summary for a short business description based only on OCR text.\n"
         "If unsure, omit the field.\n"
         "OCR items:\n"
         f"{json.dumps(compact_items, ensure_ascii=False)}"

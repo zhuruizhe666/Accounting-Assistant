@@ -1,0 +1,21 @@
+{
+  "document_types": [
+    "发票",
+    "收据",
+    "银行回单",
+    "行程单",
+    "其他"
+  ],
+  "counterparties": [],
+  "expense_categories": [
+    "办公费",
+    "差旅费",
+    "交通费",
+    "材料费",
+    "咨询服务费",
+    "其他"
+  ],
+  "project_names": [],
+  "departments": [],
+  "handlers": []
+}
