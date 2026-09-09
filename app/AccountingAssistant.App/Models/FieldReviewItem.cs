@@ -10,7 +10,23 @@ public sealed class FieldReviewItem
 
     public decimal Confidence { get; init; }
 
-    public string ConfidenceText => Confidence > 0 ? $"{Confidence:P0}" : string.Empty;
+    public string Source { get; init; } = "manual";
+
+    public string? Warning { get; init; }
+
+    public string? BaselineValue { get; init; }
+
+    public bool HasWarning => !string.IsNullOrWhiteSpace(Warning);
+
+    public string ConfidenceText => Source switch
+    {
+        "batch" => "批量",
+        "batch_conflict" => "冲突",
+        "review_conflict" => "冲突",
+        "semantic_conflict" => "冲突",
+        "review" => "已审",
+        _ => Confidence > 0 ? $"{Confidence:P0}" : string.Empty
+    };
 
     public IReadOnlyList<int> OcrRefs { get; init; } = [];
 
@@ -23,6 +39,11 @@ public sealed class FieldReviewItem
         get
         {
             var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Warning))
+            {
+                parts.Add(Warning);
+            }
+
             if (!string.IsNullOrWhiteSpace(ConfidenceText))
             {
                 parts.Add(ConfidenceText);

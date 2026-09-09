@@ -22,14 +22,16 @@
 3. `Select Folder`：选择文件夹，将其中支持的图片追加进队列。
 4. `Analyze`：分析当前选中的 Pending 图片，只执行 OCR。
 5. `Analyze All`：顺序分析所有 Pending 图片。
-6. 在 `OCR` 页检查识别文本；双击某一行可以修正 OCR 文字。
-7. 点击图片上的 OCR 框会选中右侧对应文字；点击右侧文字也会高亮图片上的框。
-8. `Confirm OCR` 或 `Shift+Enter`：确认 OCR 审核，随后在后台调用 Ollama/Qwen 解析字段；界面不会等待在当前票据上。
-9. 在 `Fields` 页审核字段。字段可以为空，也可以手动输入或从下拉建议选择。
-10. `Approve Fields` 或 `Ctrl+Enter`：确认字段审核完成。
-11. `Next Receipt` 或 `Shift+Down`：切换到下一张票据。
+6. `Batch Fill`：批量填写已完成 Analyze 的票据；空输入不修改，默认不覆盖已有值。
+7. 在 `OCR` 页检查识别文本；双击某一行可以修正 OCR 文字。
+8. 点击图片上的 OCR 框会选中右侧对应文字；点击右侧文字也会高亮图片上的框。
+9. `Confirm OCR` 或 `Shift+Enter`：确认 OCR 审核，随后在后台调用 Ollama/Qwen 解析字段；界面不会等待在当前票据上。
+10. 在 `Fields` 页审核字段。字段可以为空，也可以手动输入或从下拉建议选择。
+11. 如果字段值与它的 OCR/LLM 原始判断明显冲突，字段输入框会显示红框；多次 Batch Fill 后仍会保留并提示原始判断值。
+12. `Approve Fields` 或 `Ctrl+Enter`：确认字段审核完成。
+13. `Next Receipt` 或 `Shift+Down`：切换到下一张票据。
 
-按钮可用性由当前选中票据的状态决定：Pending 才能 `Analyze`，OCR Review 才能 `Confirm OCR`，Field Review 才能 `Approve Fields`。`Confirm OCR` 和 `Approve Fields` 两次触发之间有 3 秒锁定，避免误操作。
+按钮可用性由当前选中票据的状态决定：Pending 才能 `Analyze`，OCR Review 才能 `Confirm OCR`，Field Review 才能 `Approve Fields`。只要队列中存在已完成 Analyze 的票据，就可以使用 `Batch Fill`。`Confirm OCR` 前批量填写的字段会传给 Ollama/Qwen 作为上下文，但 Qwen 仍会基于 OCR 独立判断；如果两者冲突，字段会红框提示。`Confirm OCR` 和 `Approve Fields` 两次触发之间有 3 秒锁定，避免误操作。
 
 ## 队列状态
 

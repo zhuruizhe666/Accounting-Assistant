@@ -45,7 +45,9 @@ public sealed record ReviewedField(
     [property: JsonPropertyName("value")] string Value,
     [property: JsonPropertyName("confidence")] decimal Confidence,
     [property: JsonPropertyName("ocr_refs")] IReadOnlyList<int> OcrRefs,
-    [property: JsonPropertyName("source")] string Source);
+    [property: JsonPropertyName("source")] string Source,
+    [property: JsonPropertyName("warning")] string? Warning = null,
+    [property: JsonPropertyName("baseline_value")] string? BaselineValue = null);
 
 public sealed record SemanticAnalysisResult(
     [property: JsonPropertyName("status")] string Status,

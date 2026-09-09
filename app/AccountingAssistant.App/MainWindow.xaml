@@ -25,6 +25,7 @@
                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                     <Button x:Name="AnalyzeButton" Content="Analyze" Width="120" Height="34" Click="AnalyzeButton_Click" />
                     <Button x:Name="AnalyzeAllPendingButton" Content="Analyze All" Width="120" Height="34" Margin="8,0,0,0" Click="AnalyzeAllPendingButton_Click" />
+                    <Button x:Name="BatchFillButton" Content="Batch Fill" Width="120" Height="34" Margin="8,0,0,0" Click="BatchFillButton_Click" />
                 </StackPanel>
             </StackPanel>
             <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#555555" />
@@ -38,7 +39,7 @@
             </Grid.ColumnDefinitions>
 
             <GroupBox Grid.Column="0" Header="Receipt Queue" Margin="0,0,12,0">
-                <ListBox x:Name="ImageListBox" SelectionChanged="ImageListBox_SelectionChanged">
+                <ListBox x:Name="ImageListBox" SelectionMode="Extended" SelectionChanged="ImageListBox_SelectionChanged">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Grid Margin="4,2">
@@ -170,7 +171,18 @@
                                                       ItemsSource="{Binding Suggestions}"
                                                       Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                       LostFocus="FieldValueComboBox_LostFocus"
-                                                      SelectionChanged="FieldValueComboBox_SelectionChanged" />
+                                                      SelectionChanged="FieldValueComboBox_SelectionChanged">
+                                                <ComboBox.Style>
+                                                    <Style TargetType="ComboBox">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasWarning}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="Red" />
+                                                                <Setter Property="BorderThickness" Value="2" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ComboBox.Style>
+                                            </ComboBox>
                                             <TextBlock Grid.Row="1"
                                                        Grid.Column="1"
                                                        Text="{Binding ReviewNote}"

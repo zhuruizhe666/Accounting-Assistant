@@ -58,10 +58,10 @@ def analyze_image(image_path: Path, *, use_mock: bool) -> dict:
     }
 
 
-def parse_semantics_for_reviewed_ocr(ocr_items: list[dict]) -> dict:
+def parse_semantics_for_reviewed_ocr(ocr_items: list[dict], locked_fields: dict | None = None) -> dict:
     with contextlib.redirect_stdout(sys.stderr):
         log(f"semantic step started after OCR review: ocr_items={len(ocr_items)}")
-        semantic_fields, semantic_status = parse_semantic_fields(ocr_items)
+        semantic_fields, semantic_status = parse_semantic_fields(ocr_items, locked_fields or {})
         log(f"semantic step completed: {semantic_status.get('status')}")
 
     return {
@@ -99,7 +99,10 @@ def serve() -> int:
                     use_mock=bool(request.get("mock", False)),
                 )
             elif command == "semantic":
-                result = parse_semantics_for_reviewed_ocr(request.get("ocr_items", []))
+                result = parse_semantics_for_reviewed_ocr(
+                    request.get("ocr_items", []),
+                    request.get("locked_fields", {}),
+                )
             else:
                 raise ValueError(f"Unknown serve command: {command}")
         except Exception as exc:

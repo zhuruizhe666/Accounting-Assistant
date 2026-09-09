@@ -284,6 +284,11 @@ public partial class MainWindow : Window
         ApproveSelectedFields();
     }
 
+    private void BatchFillButton_Click(object sender, RoutedEventArgs e)
+    {
+        OpenBatchFillDialog();
+    }
+
     private void NextReceiptButton_Click(object sender, RoutedEventArgs e)
     {
         MoveToNextReceipt();
@@ -329,11 +334,13 @@ public partial class MainWindow : Window
     {
         try
         {
-            var semanticResult = await _workerClient.ParseSemanticAsync(analysisResult.OcrItems);
-            item.AnalysisResult = analysisResult with
+            var lockedFields = GetLockedReviewFields(analysisResult.ReviewFields);
+            var semanticResult = await _workerClient.ParseSemanticAsync(analysisResult.OcrItems, lockedFields);
+            var currentReviewFields = item.AnalysisResult?.ReviewFields ?? analysisResult.ReviewFields;
+            item.AnalysisResult = (item.AnalysisResult ?? analysisResult) with
             {
                 SemanticFields = semanticResult.SemanticFields,
-                ReviewFields = BuildReviewedFields(semanticResult.SemanticFields),
+                ReviewFields = BuildReviewedFields(semanticResult.SemanticFields, currentReviewFields),
                 SemanticStatus = semanticResult.SemanticStatus
             };
             item.Status = ReceiptQueueStatus.FieldReview;
@@ -482,6 +489,7 @@ public partial class MainWindow : Window
         AnalyzeButton.IsEnabled = canUseWorker &&
                                   selectedItem is { Status: ReceiptQueueStatus.Pending, IsSemanticParsing: false };
         AnalyzeAllPendingButton.IsEnabled = _isOcrWorkerReady && !_isAnalyzeAllRunning && hasPendingItems;
+        BatchFillButton.IsEnabled = _images.Any(IsBatchFillEligible);
         ConfirmOcrButton.IsEnabled = selectedItem is { Status: ReceiptQueueStatus.OcrReview, IsSemanticParsing: false } &&
                                      !_isReviewActionCoolingDown;
         ApproveFieldsButton.IsEnabled = selectedItem is { Status: ReceiptQueueStatus.FieldReview, IsSemanticParsing: false } &&
@@ -597,6 +605,130 @@ public partial class MainWindow : Window
     private bool IsSelectedReceipt(ReceiptImageItem item)
     {
         return ReferenceEquals(ImageListBox.SelectedItem, item);
+    }
+
+    private void OpenBatchFillDialog()
+    {
+        var dialog = new BatchFillDialog(_projectProfile)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var targetReceipts = GetBatchFillTargets(dialog.ApplyToAllReviewable).ToList();
+        if (targetReceipts.Count == 0)
+        {
+            StatusTextBlock.Text = "No analyzed receipts available for batch fill.";
+            return;
+        }
+
+        var fieldsToApply = dialog.FieldValues
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
+
+        if (fieldsToApply.Count == 0)
+        {
+            StatusTextBlock.Text = "Batch fill skipped: no values entered.";
+            return;
+        }
+
+        var changedReceipts = 0;
+        var changedFields = 0;
+        foreach (var receipt in targetReceipts)
+        {
+            var changedForReceipt = ApplyBatchFieldsToReceipt(
+                receipt,
+                fieldsToApply,
+                dialog.OverwriteExistingValues);
+
+            if (changedForReceipt > 0)
+            {
+                changedReceipts++;
+                changedFields += changedForReceipt;
+            }
+        }
+
+        if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } selectedReceipt)
+        {
+            PopulateFieldReviewItems(selectedReceipt.AnalysisResult);
+        }
+
+        StatusTextBlock.Text = $"Batch filled {changedFields} field(s) across {changedReceipts} receipt(s).";
+        AppendDebugDump($"UI batch fill applied: receipts={changedReceipts}, fields={changedFields}, overwrite={dialog.OverwriteExistingValues}.");
+    }
+
+    private IEnumerable<ReceiptImageItem> GetBatchFillTargets(bool applyToAllReviewable)
+    {
+        if (applyToAllReviewable)
+        {
+            return _images.Where(IsBatchFillEligible);
+        }
+
+        var selectedReceipts = ImageListBox.SelectedItems
+            .OfType<ReceiptImageItem>()
+            .Where(IsBatchFillEligible)
+            .ToList();
+
+        if (selectedReceipts.Count > 0)
+        {
+            return selectedReceipts;
+        }
+
+        return ImageListBox.SelectedItem is ReceiptImageItem selected && IsBatchFillEligible(selected)
+            ? [selected]
+            : [];
+    }
+
+    private static bool IsBatchFillEligible(ReceiptImageItem item)
+    {
+        return item.AnalysisResult is not null &&
+               item.Status is ReceiptQueueStatus.OcrReview or ReceiptQueueStatus.FieldReview;
+    }
+
+    private static int ApplyBatchFieldsToReceipt(
+        ReceiptImageItem receipt,
+        IReadOnlyDictionary<string, string> fieldsToApply,
+        bool overwriteExistingValues)
+    {
+        var result = receipt.AnalysisResult;
+        if (result is null)
+        {
+            return 0;
+        }
+
+        var reviewFields = result.ReviewFields is not null
+            ? new Dictionary<string, ReviewedField>(result.ReviewFields)
+            : BuildReviewedFields(result.SemanticFields, result.ReviewFields);
+
+        var changedFields = 0;
+        foreach (var (fieldName, value) in fieldsToApply)
+        {
+            reviewFields.TryGetValue(fieldName, out var existingField);
+            if (!overwriteExistingValues && !string.IsNullOrWhiteSpace(existingField?.Value))
+            {
+                continue;
+            }
+
+            reviewFields[fieldName] = new ReviewedField(
+                value,
+                BuildBatchFieldConfidence(value, existingField, result),
+                BuildBatchFieldOcrRefs(value, existingField, result),
+                BuildBatchFieldSource(value, existingField, result),
+                BuildBatchFieldWarning(value, existingField, result),
+                BuildBatchFieldBaselineValue(existingField));
+            changedFields++;
+        }
+
+        if (changedFields > 0)
+        {
+            receipt.AnalysisResult = result with { ReviewFields = reviewFields };
+        }
+
+        return changedFields;
     }
 
     private static void FocusEditableComboBox(System.Windows.Controls.ComboBox comboBox)
@@ -843,7 +975,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var reviewFields = result.ReviewFields ?? BuildReviewedFields(result.SemanticFields);
+        var reviewFields = result.ReviewFields ?? BuildReviewedFields(result.SemanticFields, result.ReviewFields);
 
         foreach (var definition in FieldDefinitions)
         {
@@ -854,18 +986,36 @@ public partial class MainWindow : Window
                 Label = definition.Label,
                 Value = field?.Value ?? string.Empty,
                 Confidence = field?.Confidence ?? 0,
+                Source = field?.Source ?? "manual",
+                Warning = field?.Warning,
+                BaselineValue = field?.BaselineValue,
                 OcrRefs = field?.OcrRefs ?? [],
                 Suggestions = _projectProfile.GetSuggestions(definition.FieldName)
             });
         }
     }
 
-    private static Dictionary<string, ReviewedField> BuildReviewedFields(Dictionary<string, IReadOnlyList<SemanticField>>? semanticFields)
+    private static Dictionary<string, ReviewedField> BuildReviewedFields(
+        Dictionary<string, IReadOnlyList<SemanticField>>? semanticFields,
+        Dictionary<string, ReviewedField>? existingReviewFields = null)
     {
         var reviewFields = new Dictionary<string, ReviewedField>();
 
         foreach (var definition in FieldDefinitions)
         {
+            if (existingReviewFields is not null &&
+                existingReviewFields.TryGetValue(definition.FieldName, out var existingField) &&
+                !string.IsNullOrWhiteSpace(existingField.Value))
+            {
+                var semanticCandidate = semanticFields is not null &&
+                                        semanticFields.TryGetValue(definition.FieldName, out var existingSemanticFields)
+                    ? existingSemanticFields.FirstOrDefault()
+                    : null;
+
+                reviewFields[definition.FieldName] = BuildExistingReviewFieldWithSemanticCheck(existingField, semanticCandidate);
+                continue;
+            }
+
             var semanticField = semanticFields is not null &&
                                 semanticFields.TryGetValue(definition.FieldName, out var fields)
                 ? fields.FirstOrDefault()
@@ -875,10 +1025,24 @@ public partial class MainWindow : Window
                 semanticField?.Value ?? string.Empty,
                 semanticField?.Confidence ?? 0,
                 semanticField?.OcrRefs ?? [],
-                semanticField is null ? "manual" : "semantic");
+                semanticField is null ? "manual" : "semantic",
+                null,
+                semanticField?.Value);
         }
 
         return reviewFields;
+    }
+
+    private static Dictionary<string, ReviewedField> GetLockedReviewFields(Dictionary<string, ReviewedField>? reviewFields)
+    {
+        if (reviewFields is null)
+        {
+            return [];
+        }
+
+        return reviewFields
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Value.Value))
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
     }
 
     private void SyncFieldReviewItemsToReceipt(ReceiptImageItem receipt)
@@ -891,14 +1055,165 @@ public partial class MainWindow : Window
 
         var reviewFields = _fieldReviewItems.ToDictionary(
             item => item.FieldName,
-            item => new ReviewedField(
-                item.Value.Trim(),
-                item.Confidence,
-                item.OcrRefs,
-                "review"));
+            item => BuildReviewedFieldFromReviewItem(result, item));
 
         receipt.AnalysisResult = result with { ReviewFields = reviewFields };
         AppendDebugDump($"UI field review synced: path={receipt.FullPath}, fields={reviewFields.Count}.");
+    }
+
+    private static decimal BuildBatchFieldConfidence(string value, ReviewedField? existingField, ReceiptAnalysisResult result)
+    {
+        return HasBatchFieldConflict(value, existingField, result) ? 0 : existingField?.Confidence ?? 0;
+    }
+
+    private static IReadOnlyList<int> BuildBatchFieldOcrRefs(string value, ReviewedField? existingField, ReceiptAnalysisResult result)
+    {
+        return HasBatchFieldConflict(value, existingField, result) ? [] : existingField?.OcrRefs ?? [];
+    }
+
+    private static string BuildBatchFieldSource(string value, ReviewedField? existingField, ReceiptAnalysisResult result)
+    {
+        return HasBatchFieldConflict(value, existingField, result) ? "batch_conflict" : "batch";
+    }
+
+    private static string? BuildBatchFieldWarning(string value, ReviewedField? existingField, ReceiptAnalysisResult result)
+    {
+        if (!HasBatchFieldConflict(value, existingField, result))
+        {
+            return null;
+        }
+
+        var previousValue = existingField?.Value ?? string.Empty;
+        var baselineValue = BuildBatchFieldBaselineValue(existingField);
+        var sourceText = BuildOcrSourceText(existingField?.OcrRefs ?? [], result.OcrItems);
+        var originalValue = !string.IsNullOrWhiteSpace(baselineValue) ? baselineValue : previousValue;
+        return string.IsNullOrWhiteSpace(sourceText)
+            ? $"冲突：原 {originalValue}"
+            : $"冲突：原 {originalValue}；OCR {sourceText}";
+    }
+
+    private static bool HasBatchFieldConflict(string value, ReviewedField? existingField, ReceiptAnalysisResult result)
+    {
+        if (existingField is null)
+        {
+            return false;
+        }
+
+        var baselineValue = BuildBatchFieldBaselineValue(existingField);
+        if (!string.IsNullOrWhiteSpace(baselineValue))
+        {
+            return !AreFieldValuesEquivalent(value, baselineValue);
+        }
+
+        if (!string.IsNullOrWhiteSpace(existingField.Value) &&
+            !AreFieldValuesEquivalent(existingField.Value, value))
+        {
+            return true;
+        }
+
+        return HasOcrSourceConflict(value, existingField.OcrRefs, result.OcrItems);
+    }
+
+    private static string? BuildBatchFieldBaselineValue(ReviewedField? existingField)
+    {
+        if (!string.IsNullOrWhiteSpace(existingField?.BaselineValue))
+        {
+            return existingField.BaselineValue;
+        }
+
+        return existingField?.Source is "semantic" or "semantic_conflict"
+            ? existingField.Value
+            : null;
+    }
+
+    private static ReviewedField BuildReviewedFieldFromReviewItem(ReceiptAnalysisResult result, FieldReviewItem item)
+    {
+        var value = item.Value.Trim();
+        var hasConflict = HasOcrSourceConflict(value, item.OcrRefs, result.OcrItems);
+        return new ReviewedField(
+            value,
+            hasConflict ? 0 : item.Confidence,
+            hasConflict ? [] : item.OcrRefs,
+            hasConflict ? "review_conflict" : "review",
+            hasConflict ? BuildOcrConflictWarning(value, item.OcrRefs, result.OcrItems, item.BaselineValue) : null,
+            item.BaselineValue);
+    }
+
+    private static ReviewedField BuildExistingReviewFieldWithSemanticCheck(
+        ReviewedField existingField,
+        SemanticField? semanticField)
+    {
+        if (semanticField is null || string.IsNullOrWhiteSpace(semanticField.Value))
+        {
+            return existingField;
+        }
+
+        if (AreFieldValuesEquivalent(existingField.Value, semanticField.Value))
+        {
+            return existingField with { Warning = null, BaselineValue = semanticField.Value };
+        }
+
+        return existingField with
+        {
+            Confidence = 0,
+            OcrRefs = [],
+            Source = "semantic_conflict",
+            Warning = $"冲突：原 {semanticField.Value}",
+            BaselineValue = semanticField.Value
+        };
+    }
+
+    private static bool HasOcrSourceConflict(
+        string value,
+        IReadOnlyList<int> ocrRefs,
+        IReadOnlyList<OcrItem> ocrItems)
+    {
+        if (string.IsNullOrWhiteSpace(value) || ocrRefs.Count == 0)
+        {
+            return false;
+        }
+
+        var normalizedValue = NormalizeForComparison(value);
+        var normalizedSourceText = NormalizeForComparison(BuildOcrSourceText(ocrRefs, ocrItems));
+        if (string.IsNullOrWhiteSpace(normalizedSourceText))
+        {
+            return false;
+        }
+
+        return !normalizedSourceText.Contains(normalizedValue, StringComparison.OrdinalIgnoreCase) &&
+               !normalizedValue.Contains(normalizedSourceText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildOcrConflictWarning(
+        string value,
+        IReadOnlyList<int> ocrRefs,
+        IReadOnlyList<OcrItem> ocrItems,
+        string? baselineValue = null)
+    {
+        var originalValue = !string.IsNullOrWhiteSpace(baselineValue)
+            ? baselineValue
+            : BuildOcrSourceText(ocrRefs, ocrItems);
+        return $"冲突：原 {originalValue}";
+    }
+
+    private static string BuildOcrSourceText(IReadOnlyList<int> ocrRefs, IReadOnlyList<OcrItem> ocrItems)
+    {
+        return string.Join(" ", ocrRefs
+            .Where(index => index >= 0 && index < ocrItems.Count)
+            .Select(index => ocrItems[index].DisplayText));
+    }
+
+    private static string NormalizeForComparison(string value)
+    {
+        return new string(value.Where(character => !char.IsWhiteSpace(character)).ToArray());
+    }
+
+    private static bool AreFieldValuesEquivalent(string left, string right)
+    {
+        return string.Equals(
+            NormalizeForComparison(left),
+            NormalizeForComparison(right),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static OcrHighlightStyle GetOcrHighlightStyle(decimal confidence, bool isSelected)

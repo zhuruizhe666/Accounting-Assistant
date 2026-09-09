@@ -97,7 +97,10 @@ public sealed class PythonWorkerClient : IDisposable
         }
     }
 
-    public async Task<SemanticAnalysisResult> ParseSemanticAsync(IReadOnlyList<OcrItem> ocrItems, CancellationToken cancellationToken = default)
+    public async Task<SemanticAnalysisResult> ParseSemanticAsync(
+        IReadOnlyList<OcrItem> ocrItems,
+        IReadOnlyDictionary<string, ReviewedField>? lockedFields = null,
+        CancellationToken cancellationToken = default)
     {
         await _requestLock.WaitAsync(cancellationToken);
         try
@@ -117,7 +120,16 @@ public sealed class PythonWorkerClient : IDisposable
                     corrected_text = item.CorrectedText,
                     confidence = item.Confidence,
                     bbox = item.BBox
-                }).ToList()
+                }).ToList(),
+                locked_fields = lockedFields?
+                    .Where(pair => !string.IsNullOrWhiteSpace(pair.Value.Value))
+                    .ToDictionary(pair => pair.Key, pair => new
+                    {
+                        value = pair.Value.Value,
+                        confidence = pair.Value.Confidence,
+                        ocr_refs = pair.Value.OcrRefs,
+                        source = pair.Value.Source
+                    })
             }, timeoutCts.Token);
 
             var result = JsonSerializer.Deserialize<SemanticAnalysisResult>(responseLine, JsonOptions)

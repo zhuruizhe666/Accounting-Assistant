@@ -25,7 +25,11 @@ DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 DEFAULT_OLLAMA_MODEL = "qwen2.5:7b-instruct"
 
 
-def parse_semantic_fields(ocr_items: list[dict[str, Any]]) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
+def parse_semantic_fields(
+    ocr_items: list[dict[str, Any]],
+    locked_fields: dict[str, Any] | None = None,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
+    locked_fields = locked_fields or {}
     log(f"semantic parse requested: ocr_items={len(ocr_items)}")
     if not ocr_items:
         log("semantic parse skipped: no OCR items")
@@ -35,7 +39,7 @@ def parse_semantic_fields(ocr_items: list[dict[str, Any]]) -> tuple[dict[str, li
     model = os.environ.get("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
     log(f"semantic engine configured: base_url={base_url} model={model}")
 
-    prompt = build_prompt(ocr_items)
+    prompt = build_prompt(ocr_items, locked_fields)
     log(f"semantic prompt built: chars={len(prompt)}")
     request_body = {
         "model": model,
@@ -55,7 +59,7 @@ def parse_semantic_fields(ocr_items: list[dict[str, Any]]) -> tuple[dict[str, li
         model_text = response.get("response", "")
         parsed = parse_model_json(model_text)
         log("ollama JSON parsed")
-        return normalize_semantic_fields(parsed, ocr_items), {
+        return normalize_semantic_fields(parsed, ocr_items, locked_fields), {
             "engine": "ollama",
             "model": model,
             "status": "ok",
@@ -70,7 +74,7 @@ def parse_semantic_fields(ocr_items: list[dict[str, Any]]) -> tuple[dict[str, li
         }
 
 
-def build_prompt(ocr_items: list[dict[str, Any]]) -> str:
+def build_prompt(ocr_items: list[dict[str, Any]], locked_fields: dict[str, Any]) -> str:
     compact_items = [
         {
             "index": index,
@@ -82,11 +86,23 @@ def build_prompt(ocr_items: list[dict[str, Any]]) -> str:
         }
         for index, item in enumerate(ocr_items)
     ]
+    compact_locked_fields = {
+        field_name: {
+            "value": str(field.get("value", "")),
+            "ocr_refs": field.get("ocr_refs", []),
+            "source": field.get("source", "human"),
+        }
+        for field_name, field in locked_fields.items()
+        if field_name in FIELD_ORDER and str(field.get("value", "")).strip()
+    }
 
     return (
         "You are a receipt OCR semantic field classifier.\n"
         "Return ONLY valid JSON. Do not use markdown. Do not explain.\n"
         "Do not invent values that are not present in OCR items.\n"
+        "Human prefilled fields may be wrong. Use them only as context.\n"
+        "You must still infer each field independently from OCR items.\n"
+        "If OCR evidence disagrees with a human prefilled field, return the OCR-supported value.\n"
         "Use English field IDs only.\n"
         "Every field item must reference source OCR indexes in ocr_refs.\n"
         "Allowed field IDs, in required order:\n"
@@ -101,6 +117,8 @@ def build_prompt(ocr_items: list[dict[str, Any]]) -> str:
         "Use counterparty_name for the visible trading party most relevant to accounting review.\n"
         "Use summary for a short business description based only on OCR text.\n"
         "If unsure, omit the field.\n"
+        "Human prefilled fields:\n"
+        f"{json.dumps(compact_locked_fields, ensure_ascii=False)}\n"
         "OCR items:\n"
         f"{json.dumps(compact_items, ensure_ascii=False)}"
     )
@@ -132,10 +150,13 @@ def parse_model_json(model_text: str) -> dict[str, Any]:
     return json.loads(text)
 
 
-def normalize_semantic_fields(parsed: dict[str, Any], ocr_items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def normalize_semantic_fields(
+    parsed: dict[str, Any],
+    ocr_items: list[dict[str, Any]],
+    locked_fields: dict[str, Any] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
     output = empty_semantic_fields()
     ocr_count = len(ocr_items)
-
     for raw_field in parsed.get("fields", []):
         field_name = str(raw_field.get("field", "")).strip()
         if field_name not in output:
