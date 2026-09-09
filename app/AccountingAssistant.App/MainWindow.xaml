@@ -83,14 +83,37 @@
             </Border>
 
             <GroupBox Grid.Column="2" Header="Worker Result" Margin="12,0,0,0">
-                <TextBox x:Name="ResultTextBox"
-                         FontFamily="Consolas"
-                         FontSize="12"
-                         IsReadOnly="True"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Auto" />
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBox x:Name="ResultTextBox"
+                             Grid.Row="0"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto" />
+
+                    <Expander Grid.Row="1"
+                              Header="Debug Dump"
+                              IsExpanded="False"
+                              Margin="0,8,0,0">
+                        <TextBox x:Name="DebugDumpTextBox"
+                                 Height="180"
+                                 FontFamily="Consolas"
+                                 FontSize="12"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto" />
+                    </Expander>
+                </Grid>
             </GroupBox>
         </Grid>
 

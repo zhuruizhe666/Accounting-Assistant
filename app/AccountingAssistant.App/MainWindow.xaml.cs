@@ -38,16 +38,52 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this;
         ImageListBox.ItemsSource = _images;
+        _workerClient.DebugOutputReceived += AppendDebugDump;
         StatusTextBlock.Text = "Ready. Select receipt images to start.";
+        Loaded += MainWindow_Loaded;
+        Closed += MainWindow_Closed;
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        AnalyzeButton.IsEnabled = false;
+        AnalyzeAllPendingButton.IsEnabled = false;
+        StatusTextBlock.Text = "OCR worker warming up...";
+        AppendDebugDump("UI startup warmup started. Analyze buttons disabled.");
+
+        try
+        {
+            await _workerClient.WarmupAsync();
+            StatusTextBlock.Text = "OCR worker ready.";
+            AppendDebugDump("UI startup warmup completed. Analyze buttons enabled.");
+        }
+        catch (Exception ex)
+        {
+            StatusTextBlock.Text = "OCR worker warmup failed. Check Debug Dump.";
+            AppendDebugDump($"UI startup warmup failed: {ex}");
+        }
+        finally
+        {
+            AnalyzeButton.IsEnabled = true;
+            AnalyzeAllPendingButton.IsEnabled = true;
+        }
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        _workerClient.DebugOutputReceived -= AppendDebugDump;
+        _workerClient.Dispose();
     }
 
     private void SelectImagesButton_Click(object sender, RoutedEventArgs e)
     {
+        AppendDebugDump("UI select images requested.");
         LoadImages(SelectImageFiles(), "No images selected.");
     }
 
     private void SelectFolderButton_Click(object sender, RoutedEventArgs e)
     {
+        AppendDebugDump("UI select folder requested.");
         LoadImages(SelectImagesFromFolder(), "No supported images found in folder.");
     }
 
@@ -84,6 +120,7 @@ public partial class MainWindow : Window
         }
 
         StatusTextBlock.Text = $"Added {addedCount} image(s). Skipped {skippedCount} duplicate(s). Queue total: {_images.Count}.";
+        AppendDebugDump($"UI queue updated: added={addedCount}, skipped_duplicates={skippedCount}, total={_images.Count}.");
     }
 
     private IReadOnlyList<string> SelectImageFiles()
@@ -145,6 +182,7 @@ public partial class MainWindow : Window
         UpdateReceiptImageLayout();
         OcrOverlayCanvas.Children.Clear();
         StatusTextBlock.Text = $"Selected {item.FileName}.";
+        AppendDebugDump($"UI selected receipt: {item.FullPath}");
     }
 
     private async void AnalyzeButton_Click(object sender, RoutedEventArgs e)
@@ -219,6 +257,7 @@ public partial class MainWindow : Window
 
         item.Status = ReceiptQueueStatus.Censored;
         StatusTextBlock.Text = $"{item.FileName} marked censored.";
+        AppendDebugDump($"UI receipt marked censored: {item.FullPath}");
         StartMarkCensoredCooldown();
         MoveToNextReceipt();
     }
@@ -260,6 +299,7 @@ public partial class MainWindow : Window
         ImageListBox.ScrollIntoView(_images[nextIndex]);
         ImageListBox.Focus();
         StatusTextBlock.Text = $"Moved to {_images[nextIndex].FileName}.";
+        AppendDebugDump($"UI moved to next receipt: index={nextIndex}, path={_images[nextIndex].FullPath}");
     }
 
     private async Task AnalyzeItemAsync(ReceiptImageItem item, bool manageButtons = true)
@@ -271,6 +311,7 @@ public partial class MainWindow : Window
 
         item.Status = ReceiptQueueStatus.Processing;
         StatusTextBlock.Text = $"Analyzing {item.FileName}...";
+        AppendDebugDump($"UI analyze started: {item.FullPath}");
 
         try
         {
@@ -280,12 +321,14 @@ public partial class MainWindow : Window
             RenderOcrHighlights(result);
             item.Status = ReceiptQueueStatus.Analyzed;
             StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting human review.";
+            AppendDebugDump($"UI analyze completed: ocr_items={result.OcrItems.Count}, semantic_status={result.SemanticStatus?.Status ?? "none"}.");
         }
         catch (Exception ex)
         {
             ResultTextBox.Text = ex.ToString();
             item.Status = ReceiptQueueStatus.Error;
             StatusTextBlock.Text = $"{item.FileName} failed. Check worker output.";
+            AppendDebugDump($"UI analyze failed: {ex}");
         }
         finally
         {
@@ -389,6 +432,8 @@ public partial class MainWindow : Window
             Canvas.SetTop(rectangle, top);
             OcrOverlayCanvas.Children.Add(rectangle);
         }
+
+        AppendDebugDump($"UI OCR highlights rendered: boxes={OcrOverlayCanvas.Children.Count}");
     }
 
     private static BitmapImage LoadBitmap(string path)
@@ -401,5 +446,14 @@ public partial class MainWindow : Window
         bitmap.EndInit();
         bitmap.Freeze();
         return bitmap;
+    }
+
+    private void AppendDebugDump(string message)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            DebugDumpTextBox.AppendText($"{DateTime.Now:HH:mm:ss} {message}{Environment.NewLine}");
+            DebugDumpTextBox.ScrollToEnd();
+        });
     }
 }

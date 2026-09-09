@@ -22,32 +22,58 @@ public sealed class PythonWorkerClient : IDisposable
     private StreamReader? _stdout;
     private Task? _stderrPumpTask;
 
-    public async Task<ReceiptAnalysisResult> AnalyzeAsync(string imagePath, CancellationToken cancellationToken = default)
+    public event Action<string>? DebugOutputReceived;
+
+    public async Task WarmupAsync(CancellationToken cancellationToken = default)
     {
         await _requestLock.WaitAsync(cancellationToken);
         try
         {
+            OnDebugOutput("C# warmup requested.");
             EnsureServeProcessStarted();
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(AnalyzeTimeout);
 
-            var request = JsonSerializer.Serialize(new
+            var responseLine = await SendServeRequestAsync(new { command = "warmup" }, timeoutCts.Token);
+            using var document = JsonDocument.Parse(responseLine);
+            var status = document.RootElement.GetProperty("status").GetString();
+
+            if (!string.Equals(status, "ok", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Python worker warmup failed: {responseLine}");
+            }
+
+            OnDebugOutput("C# warmup completed.");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            RestartServeProcess();
+            throw new TimeoutException($"Python worker warmup exceeded the {AnalyzeTimeout.TotalMinutes:0}-minute timeout.");
+        }
+        finally
+        {
+            _requestLock.Release();
+        }
+    }
+
+    public async Task<ReceiptAnalysisResult> AnalyzeAsync(string imagePath, CancellationToken cancellationToken = default)
+    {
+        await _requestLock.WaitAsync(cancellationToken);
+        try
+        {
+            OnDebugOutput($"C# analyze requested: {imagePath}");
+            EnsureServeProcessStarted();
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(AnalyzeTimeout);
+
+            var responseLine = await SendServeRequestAsync(new
             {
                 command = "analyze",
                 image_path = imagePath,
                 mock = false
-            });
-
-            await _stdin!.WriteLineAsync(request.AsMemory(), timeoutCts.Token);
-            await _stdin.FlushAsync(timeoutCts.Token);
-
-            var responseLine = await _stdout!.ReadLineAsync(timeoutCts.Token);
-            if (string.IsNullOrWhiteSpace(responseLine))
-            {
-                RestartServeProcess();
-                throw new InvalidOperationException($"Python worker returned no response.{Environment.NewLine}{GetRecentStderr()}");
-            }
+            }, timeoutCts.Token);
 
             var result = JsonSerializer.Deserialize<ReceiptAnalysisResult>(responseLine, JsonOptions)
                 ?? throw new InvalidOperationException("Python worker returned invalid JSON.");
@@ -57,6 +83,7 @@ public sealed class PythonWorkerClient : IDisposable
                 throw new InvalidOperationException($"Python worker error: {result.Error}");
             }
 
+            OnDebugOutput($"C# analyze completed: ocr_items={result.OcrItems.Count}");
             return result;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -68,6 +95,25 @@ public sealed class PythonWorkerClient : IDisposable
         {
             _requestLock.Release();
         }
+    }
+
+    private async Task<string> SendServeRequestAsync<TRequest>(TRequest requestObject, CancellationToken cancellationToken)
+    {
+        var request = JsonSerializer.Serialize(requestObject);
+        OnDebugOutput($"C# sending worker request: {request}");
+
+        await _stdin!.WriteLineAsync(request.AsMemory(), cancellationToken);
+        await _stdin.FlushAsync(cancellationToken);
+
+        var responseLine = await _stdout!.ReadLineAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(responseLine))
+        {
+            RestartServeProcess();
+            throw new InvalidOperationException($"Python worker returned no response.{Environment.NewLine}{GetRecentStderr()}");
+        }
+
+        OnDebugOutput($"C# received worker response: {responseLine.Length} chars");
+        return responseLine;
     }
 
     public Task<ReceiptAnalysisResult> AnalyzeMockAsync(string imagePath, CancellationToken cancellationToken = default)
@@ -98,6 +144,7 @@ public sealed class PythonWorkerClient : IDisposable
         startInfo.ArgumentList.Add("serve");
 
         _serveProcess = Process.Start(startInfo) ?? throw new InvalidOperationException("Could not start Python worker.");
+        OnDebugOutput($"C# started Python worker process: pid={_serveProcess.Id}");
         _stdin = _serveProcess.StandardInput;
         _stdout = _serveProcess.StandardOutput;
         _stderrPumpTask = Task.Run(async () =>
@@ -118,6 +165,8 @@ public sealed class PythonWorkerClient : IDisposable
                         _stderrBuffer.Remove(0, _stderrBuffer.Length - 12000);
                     }
                 }
+
+                OnDebugOutput(line);
             }
         });
     }
@@ -199,6 +248,7 @@ public sealed class PythonWorkerClient : IDisposable
 
         TryKillProcess(process);
         process.Dispose();
+        OnDebugOutput("C# Python worker process stopped.");
     }
 
     private string GetRecentStderr()
@@ -238,5 +288,10 @@ public sealed class PythonWorkerClient : IDisposable
         }
 
         return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+    }
+
+    private void OnDebugOutput(string message)
+    {
+        DebugOutputReceived?.Invoke($"[{DateTime.Now:HH:mm:ss}] {message}");
     }
 }

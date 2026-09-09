@@ -26,13 +26,22 @@ def run_primary_ocr(image_path: Path) -> list[dict[str, Any]]:
     if not image_path.exists():
         raise FileNotFoundError(f"Image not found: {image_path}")
 
+    log(f"preprocess started: max_side={OCR_MAX_SIDE}")
     prepared = prepare_image_for_ocr(image_path)
+    log(f"preprocess completed: ocr_path={prepared.path} scale_to_original={prepared.scale_to_original:.4f}")
     try:
+        log("paddleocr predict started")
         raw_results = get_primary_ocr().predict(str(prepared.path))
+        log("paddleocr predict completed")
         return normalize_paddleocr_results(raw_results, prepared.scale_to_original)
     finally:
         if prepared.temporary_path is not None:
             prepared.temporary_path.unlink(missing_ok=True)
+            log(f"temporary OCR image removed: {prepared.temporary_path}")
+
+
+def warmup_primary_ocr() -> None:
+    get_primary_ocr()
 
 
 def get_primary_ocr() -> Any:
@@ -41,6 +50,7 @@ def get_primary_ocr() -> Any:
     if _PRIMARY_OCR is None:
         from paddleocr import PaddleOCR
 
+        log("paddleocr model initialization started")
         _PRIMARY_OCR = PaddleOCR(
             lang="ch",
             ocr_version="PP-OCRv4",
@@ -52,6 +62,7 @@ def get_primary_ocr() -> Any:
             text_det_limit_side_len=OCR_MAX_SIDE,
             text_det_limit_type="max",
         )
+        log("paddleocr model initialization completed")
 
     return _PRIMARY_OCR
 
@@ -61,8 +72,10 @@ def prepare_image_for_ocr(image_path: Path) -> PreparedImage:
         image.load()
         width, height = image.size
         longest_side = max(width, height)
+        log(f"source image opened: width={width} height={height} longest_side={longest_side}")
 
         if longest_side <= OCR_MAX_SIDE:
+            log("source image within OCR size limit; no resize needed")
             return PreparedImage(image_path, scale_to_original=1.0, temporary_path=None)
 
         scale_to_ocr = OCR_MAX_SIDE / longest_side
@@ -76,6 +89,7 @@ def prepare_image_for_ocr(image_path: Path) -> PreparedImage:
         temp_path = Path(temp_file.name)
         temp_file.close()
         resized.save(temp_path, format="JPEG", quality=92, optimize=True)
+        log(f"source image resized for OCR: width={resized_size[0]} height={resized_size[1]}")
 
     return PreparedImage(temp_path, scale_to_original=1 / scale_to_ocr, temporary_path=temp_path)
 
@@ -114,3 +128,7 @@ def polygon_to_bbox(polygon: Any, scale_to_original: float = 1.0) -> list[list[i
         [int(round(point[0] * scale_to_original)), int(round(point[1] * scale_to_original))]
         for point in points
     ]
+
+
+def log(message: str) -> None:
+    print(f"[ocr] {message}", file=os.sys.stderr, flush=True)
