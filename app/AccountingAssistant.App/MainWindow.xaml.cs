@@ -22,8 +22,10 @@ public partial class MainWindow : Window
     };
 
     private readonly ObservableCollection<ReceiptImageItem> _images = [];
+    private readonly ObservableCollection<OcrDisplayItem> _ocrDisplayItems = [];
     private readonly PythonWorkerClient _workerClient = new();
     private bool _isReviewActionCoolingDown;
+    private int? _selectedOcrIndex;
 
     public ICommand ConfirmOcrCommand { get; }
 
@@ -40,6 +42,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this;
         ImageListBox.ItemsSource = _images;
+        OcrResultListBox.ItemsSource = _ocrDisplayItems;
         _workerClient.DebugOutputReceived += AppendDebugDump;
         StatusTextBlock.Text = "Ready. Select receipt images to start.";
         Loaded += MainWindow_Loaded;
@@ -175,20 +178,22 @@ public partial class MainWindow : Window
         {
             ReceiptImage.Source = null;
             OcrOverlayCanvas.Children.Clear();
-            ResultTextBox.Clear();
+            _ocrDisplayItems.Clear();
+            _selectedOcrIndex = null;
             return;
         }
 
         ReceiptImage.Source = LoadBitmap(item.FullPath);
+        _selectedOcrIndex = null;
         UpdateReceiptImageLayout();
         if (item.AnalysisResult is not null)
         {
-            ResultTextBox.Text = JsonSerializer.Serialize(item.AnalysisResult, JsonOptions);
+            PopulateOcrDisplayItems(item.AnalysisResult);
             RenderOcrHighlights(item.AnalysisResult);
         }
         else
         {
-            ResultTextBox.Clear();
+            _ocrDisplayItems.Clear();
             OcrOverlayCanvas.Children.Clear();
         }
         StatusTextBlock.Text = $"Selected {item.FileName}.";
@@ -361,7 +366,7 @@ public partial class MainWindow : Window
         {
             var result = await _workerClient.AnalyzeAsync(item.FullPath);
             item.AnalysisResult = result;
-            ResultTextBox.Text = JsonSerializer.Serialize(result, JsonOptions);
+            PopulateOcrDisplayItems(result);
             RenderOcrHighlights(result);
             item.Status = ReceiptQueueStatus.OcrReview;
             StatusTextBlock.Text = $"{item.FileName} analyzed. Awaiting OCR review.";
@@ -369,7 +374,8 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ResultTextBox.Text = ex.ToString();
+            _ocrDisplayItems.Clear();
+            _ocrDisplayItems.Add(new OcrDisplayItem(0, "Analysis failed. Open Debug Dump for details.", 0, "Error"));
             item.Status = ReceiptQueueStatus.Error;
             StatusTextBlock.Text = $"{item.FileName} failed. Check worker output.";
             AppendDebugDump($"UI analyze failed: {ex}");
@@ -399,6 +405,22 @@ public partial class MainWindow : Window
         if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } item)
         {
             RenderOcrHighlights(item.AnalysisResult);
+        }
+    }
+
+    private void OcrResultListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (OcrResultListBox.SelectedItem is not OcrDisplayItem item)
+        {
+            _selectedOcrIndex = null;
+            return;
+        }
+
+        _selectedOcrIndex = item.Index;
+
+        if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } receipt)
+        {
+            RenderOcrHighlights(receipt.AnalysisResult);
         }
     }
 
@@ -449,8 +471,11 @@ public partial class MainWindow : Window
 
         var scaleX = ReceiptImage.Width / bitmap.PixelWidth;
         var scaleY = ReceiptImage.Height / bitmap.PixelHeight;
+        var highConfidenceCount = 0;
+        var mediumConfidenceCount = 0;
+        var lowConfidenceCount = 0;
 
-        foreach (var item in result.OcrItems)
+        foreach (var (item, index) in result.OcrItems.Select((value, index) => (value, index)))
         {
             if (item.BBox.Count == 0)
             {
@@ -463,23 +488,108 @@ public partial class MainWindow : Window
             var top = ys.Min() * scaleY;
             var width = Math.Max(1, (xs.Max() - xs.Min()) * scaleX);
             var height = Math.Max(1, (ys.Max() - ys.Min()) * scaleY);
+            var isSelected = _selectedOcrIndex == index;
+            var style = GetOcrHighlightStyle(item.Confidence, isSelected);
+
+            if (item.Confidence >= 0.90m)
+            {
+                highConfidenceCount++;
+            }
+            else if (item.Confidence >= 0.60m)
+            {
+                mediumConfidenceCount++;
+            }
+            else
+            {
+                lowConfidenceCount++;
+            }
 
             var rectangle = new System.Windows.Shapes.Rectangle
             {
                 Width = width,
                 Height = height,
-                Stroke = System.Windows.Media.Brushes.LimeGreen,
-                StrokeThickness = 2,
-                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 50, 205, 50))
+                Stroke = style.Stroke,
+                StrokeThickness = isSelected ? 4 : 2,
+                Fill = style.Fill,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = index
             };
+            rectangle.MouseLeftButtonDown += OcrRectangle_MouseLeftButtonDown;
 
             Canvas.SetLeft(rectangle, left);
             Canvas.SetTop(rectangle, top);
             OcrOverlayCanvas.Children.Add(rectangle);
         }
 
-        AppendDebugDump($"UI OCR highlights rendered: boxes={OcrOverlayCanvas.Children.Count}");
+        AppendDebugDump($"UI OCR highlights rendered: boxes={OcrOverlayCanvas.Children.Count}, high={highConfidenceCount}, medium={mediumConfidenceCount}, low={lowConfidenceCount}.");
     }
+
+    private void OcrRectangle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: int index })
+        {
+            return;
+        }
+
+        SelectOcrDisplayItem(index);
+        AppendDebugDump($"UI OCR box clicked: index={index}");
+        e.Handled = true;
+    }
+
+    private void SelectOcrDisplayItem(int index)
+    {
+        var displayItem = _ocrDisplayItems.FirstOrDefault(item => item.Index == index);
+        if (displayItem is null)
+        {
+            return;
+        }
+
+        OcrResultListBox.SelectedItem = displayItem;
+        OcrResultListBox.ScrollIntoView(displayItem);
+    }
+
+    private void PopulateOcrDisplayItems(ReceiptAnalysisResult result)
+    {
+        _ocrDisplayItems.Clear();
+        foreach (var (item, index) in result.OcrItems.Select((value, index) => (value, index)))
+        {
+            _ocrDisplayItems.Add(new OcrDisplayItem(
+                index,
+                item.Text,
+                item.Confidence,
+                $"{item.Confidence:P0}"));
+        }
+    }
+
+    private static OcrHighlightStyle GetOcrHighlightStyle(decimal confidence, bool isSelected)
+    {
+        if (isSelected)
+        {
+            return new OcrHighlightStyle(
+                System.Windows.Media.Brushes.DodgerBlue,
+                new SolidColorBrush(System.Windows.Media.Color.FromArgb(70, 30, 144, 255)));
+        }
+
+        if (confidence >= 0.90m)
+        {
+            return new OcrHighlightStyle(
+                System.Windows.Media.Brushes.LimeGreen,
+                new SolidColorBrush(System.Windows.Media.Color.FromArgb(40, 50, 205, 50)));
+        }
+
+        if (confidence >= 0.60m)
+        {
+            return new OcrHighlightStyle(
+                System.Windows.Media.Brushes.Goldenrod,
+                new SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 255, 215, 0)));
+        }
+
+        return new OcrHighlightStyle(
+            System.Windows.Media.Brushes.Red,
+            new SolidColorBrush(System.Windows.Media.Color.FromArgb(45, 255, 0, 0)));
+    }
+
+    private sealed record OcrHighlightStyle(System.Windows.Media.Brush Stroke, System.Windows.Media.Brush Fill);
 
     private static BitmapImage LoadBitmap(string path)
     {
