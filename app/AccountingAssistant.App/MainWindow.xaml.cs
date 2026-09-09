@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace AccountingAssistant.App;
 
@@ -25,6 +26,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<OcrDisplayItem> _ocrDisplayItems = [];
     private readonly PythonWorkerClient _workerClient = new();
     private bool _isReviewActionCoolingDown;
+    private bool _isReceiptLayoutUpdateQueued;
     private int? _selectedOcrIndex;
 
     public ICommand ConfirmOcrCommand { get; }
@@ -185,11 +187,11 @@ public partial class MainWindow : Window
 
         ReceiptImage.Source = LoadBitmap(item.FullPath);
         _selectedOcrIndex = null;
-        UpdateReceiptImageLayout();
+        ScheduleReceiptImageLayoutUpdate();
         if (item.AnalysisResult is not null)
         {
             PopulateOcrDisplayItems(item.AnalysisResult);
-            RenderOcrHighlights(item.AnalysisResult);
+            ScheduleReceiptImageLayoutUpdate();
         }
         else
         {
@@ -430,12 +432,32 @@ public partial class MainWindow : Window
 
     private void ReceiptScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        UpdateReceiptImageLayout();
+        ScheduleReceiptImageLayoutUpdate();
+    }
 
-        if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } item)
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ScheduleReceiptImageLayoutUpdate();
+    }
+
+    private void ScheduleReceiptImageLayoutUpdate()
+    {
+        if (_isReceiptLayoutUpdateQueued)
         {
-            RenderOcrHighlights(item.AnalysisResult);
+            return;
         }
+
+        _isReceiptLayoutUpdateQueued = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            _isReceiptLayoutUpdateQueued = false;
+            UpdateReceiptImageLayout();
+
+            if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } item)
+            {
+                RenderOcrHighlights(item.AnalysisResult);
+            }
+        }, DispatcherPriority.Loaded);
     }
 
     private void OcrResultListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
