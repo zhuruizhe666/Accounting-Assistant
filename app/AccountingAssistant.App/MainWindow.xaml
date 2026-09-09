@@ -134,17 +134,25 @@
 
                         <TabItem Header="Fields">
                             <ListBox x:Name="FieldReviewListBox"
-                                     SelectionChanged="FieldReviewListBox_SelectionChanged">
+                                     SelectionChanged="FieldReviewListBox_SelectionChanged"
+                                     PreviewMouseLeftButtonDown="FieldReviewListBox_PreviewMouseLeftButtonDown"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="4,6">
+                                        <Grid Margin="4,6"
+                                              MinHeight="36">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="110" />
-                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="160" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Row="0"
                                                        Grid.Column="0"
@@ -153,6 +161,10 @@
                                                        VerticalAlignment="Center" />
                                             <ComboBox Grid.Row="0"
                                                       Grid.Column="1"
+                                                      Width="160"
+                                                      MinHeight="30"
+                                                      Padding="6,2"
+                                                      HorizontalContentAlignment="Stretch"
                                                       IsEditable="True"
                                                       IsTextSearchEnabled="True"
                                                       ItemsSource="{Binding Suggestions}"

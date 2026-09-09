@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Controls.Primitives;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
@@ -550,6 +551,33 @@ public partial class MainWindow : Window
         }
     }
 
+    private void FieldReviewListBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var clickedComboBox = FindVisualParent<System.Windows.Controls.ComboBox>(e.OriginalSource as DependencyObject);
+        if (clickedComboBox is not null)
+        {
+            FocusEditableComboBox(clickedComboBox);
+            return;
+        }
+
+        var listBoxItem = FindVisualParent<ListBoxItem>(e.OriginalSource as DependencyObject);
+        if (listBoxItem?.Content is not FieldReviewItem item)
+        {
+            return;
+        }
+
+        FieldReviewListBox.SelectedItem = item;
+        Dispatcher.BeginInvoke(() =>
+        {
+            var container = FieldReviewListBox.ItemContainerGenerator.ContainerFromItem(item) as DependencyObject;
+            var comboBox = FindVisualChild<System.Windows.Controls.ComboBox>(container);
+            if (comboBox is not null)
+            {
+                FocusEditableComboBox(comboBox);
+            }
+        }, DispatcherPriority.Input);
+    }
+
     private void FieldValueComboBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (ImageListBox.SelectedItem is ReceiptImageItem receipt)
@@ -569,6 +597,58 @@ public partial class MainWindow : Window
     private bool IsSelectedReceipt(ReceiptImageItem item)
     {
         return ReferenceEquals(ImageListBox.SelectedItem, item);
+    }
+
+    private static void FocusEditableComboBox(System.Windows.Controls.ComboBox comboBox)
+    {
+        comboBox.Focus();
+        if (comboBox.Template.FindName("PART_EditableTextBox", comboBox) is System.Windows.Controls.TextBox textBox)
+        {
+            textBox.Focus();
+            textBox.CaretIndex = textBox.Text.Length;
+        }
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject? current)
+        where T : DependencyObject
+    {
+        while (current is not null)
+        {
+            if (current is T match)
+            {
+                return match;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject? current)
+        where T : DependencyObject
+    {
+        if (current is null)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(current); i++)
+        {
+            var child = VisualTreeHelper.GetChild(current, i);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            var descendant = FindVisualChild<T>(child);
+            if (descendant is not null)
+            {
+                return descendant;
+            }
+        }
+
+        return null;
     }
 
     private void OcrResultListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
