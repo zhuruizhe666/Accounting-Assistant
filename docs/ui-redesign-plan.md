@@ -5,11 +5,11 @@
 - 阶段 0：已于 2026-09-11 完成。
 - 阶段 1：已于 2026-09-11 完成并通过视觉方向确认。
 - 阶段 2：已于 2026-09-11 完成，后续反馈调整已纳入。
-- 阶段 3：进行中；已完成统一确认弹窗和 Batch Fill。
+- 阶段 3：已于 2026-09-11 按确认后的范围完成；包括统一确认弹窗、Batch Fill 与 Excel Export Review。
 - 基线审计：[ui-baseline-audit.md](ui-baseline-audit.md)
 - 阶段报告：[ui-phase1-report.md](ui-phase1-report.md)、[ui-phase2-report.md](ui-phase2-report.md)
-- 当前验收：Receipt Queue 多选移除，以及 Approved 票据回退至 Field Review。
-- 下一步：验收通过后，只继续优化 Excel Export Review；OCR 编辑和建议管理弹窗暂不处理。
+- 当前验收：Excel Export Review 的导出数量、重复项提示、选择操作与目标路径复制。
+- 后续范围：Edit OCR Text 与 Suggestion Manager 按当前决策暂不处理。
 
 ## 1. 文档目的
 

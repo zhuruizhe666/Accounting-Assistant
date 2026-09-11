@@ -45,10 +45,22 @@
 - 编译结果：0 个警告，0 个错误。
 - 已通过 `.venv` 启动，应用持续运行，无 XAML 或资源加载错误。
 
-## 阶段 3 剩余工作
+## 已完成：Excel Export Review
 
-- Excel Export Review 弹窗视觉统一。
-- Edit OCR Text 与 Suggestion Manager 按当前决策暂不处理。
+- 将导出窗口重构为导出前决策界面，明确说明只有勾选票据会写入工作簿。
+- 目标 Excel 路径改为可选择文本，并增加 `Copy path` 快捷复制。
+- 增加 Approved、New Documents、Duplicates 与 Selected 四项实时统计。
+- 重复单号使用琥珀色状态徽标，并在存在重复项时显示风险说明。
+- 重复项继续默认不勾选，未改变原有防重复逻辑。
+- 表格复选框、表头、行悬停与选中状态统一到应用设计系统。
+- 底部提供 New only、Select all 与 Clear 三种明确选择方式。
+- 主按钮实时显示 `Export N selected`；选择数为 0 时禁用，避免空导出。
+- 保留原有导出结果与队列清理逻辑：只追加勾选项，且只在成功导出后移除对应票据。
+
+## 阶段 3 范围结论
+
+- 阶段 3 按用户确认后的范围完成。
+- Edit OCR Text 与 Suggestion Manager 暂不处理。
 
 ## Excel Export Review 前的流程调整
 

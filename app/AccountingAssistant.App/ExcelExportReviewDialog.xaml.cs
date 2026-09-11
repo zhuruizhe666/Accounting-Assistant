@@ -34,6 +34,20 @@ public partial class ExcelExportReviewDialog : Window, INotifyPropertyChanged
 
     public ObservableCollection<ExcelExportReviewItem> Items { get; }
 
+    public int TotalCount => Items.Count;
+
+    public int DuplicateCount => Items.Count(item => item.IsDuplicateDocumentNumber);
+
+    public int NewCount => TotalCount - DuplicateCount;
+
+    public int SelectedCount => Items.Count(item => item.ShouldAppend);
+
+    public bool HasDuplicates => DuplicateCount > 0;
+
+    public bool CanExport => SelectedCount > 0;
+
+    public string ExportButtonText => $"Export {SelectedCount} selected";
+
     public string SummaryText
     {
         get
@@ -80,12 +94,26 @@ public partial class ExcelExportReviewDialog : Window, INotifyPropertyChanged
 
     private void ExportSelectedButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!CanExport)
+        {
+            return;
+        }
+
         DialogResult = true;
+    }
+
+    private void CopyPathButton_Click(object sender, RoutedEventArgs e)
+    {
+        System.Windows.Clipboard.SetText(TargetPath);
+        CopyPathButton.Content = "Copied";
     }
 
     private void RefreshSummary()
     {
         OnPropertyChanged(nameof(SummaryText));
+        OnPropertyChanged(nameof(SelectedCount));
+        OnPropertyChanged(nameof(CanExport));
+        OnPropertyChanged(nameof(ExportButtonText));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
