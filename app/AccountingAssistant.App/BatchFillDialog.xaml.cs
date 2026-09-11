@@ -16,6 +16,8 @@ public partial class BatchFillDialog : Window
         RefreshSuggestionSources();
     }
 
+    public event Action? SuggestionsUpdated;
+
     public bool ApplyToAllReviewable => AllReviewableRadioButton.IsChecked == true;
 
     public bool OverwriteExistingValues => OverwriteCheckBox.IsChecked == true;
@@ -56,7 +58,9 @@ public partial class BatchFillDialog : Window
         }
 
         _profile.Save(_repoRoot);
+        _profile.ReplaceWith(ProjectProfile.Load(_repoRoot));
         RefreshSuggestionSources();
+        SuggestionsUpdated?.Invoke();
     }
 
     private void RefreshSuggestionSources()

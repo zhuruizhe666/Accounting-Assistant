@@ -28,6 +28,22 @@ public partial class SuggestionManagerDialog : Window
 
     private void AddSuggestionButton_Click(object sender, RoutedEventArgs e)
     {
+        AddCurrentSuggestion();
+    }
+
+    private void NewSuggestionTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Enter)
+        {
+            return;
+        }
+
+        AddCurrentSuggestion();
+        e.Handled = true;
+    }
+
+    private void AddCurrentSuggestion()
+    {
         if (SuggestionTabControl.SelectedItem is not SuggestionCategory category)
         {
             return;

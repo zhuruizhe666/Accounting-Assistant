@@ -57,6 +57,17 @@ public sealed class ProjectProfile
         File.WriteAllText(path, JsonSerializer.Serialize(this, JsonOptions));
     }
 
+    public void ReplaceWith(ProjectProfile profile)
+    {
+        DocumentTypes = [.. profile.DocumentTypes];
+        Counterparties = [.. profile.Counterparties];
+        ExpenseCategories = [.. profile.ExpenseCategories];
+        ProjectNames = [.. profile.ProjectNames];
+        Departments = [.. profile.Departments];
+        Handlers = [.. profile.Handlers];
+        Normalize();
+    }
+
     public IReadOnlyList<string> GetSuggestions(string fieldName)
     {
         return fieldName switch

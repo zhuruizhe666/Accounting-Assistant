@@ -310,9 +310,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (item.Status != ReceiptQueueStatus.OcrReview || item.IsSemanticParsing)
+        if (!CanConfirmOcr(item) || item.IsSemanticParsing)
         {
-            StatusTextBlock.Text = "Shift+Enter only confirms OCR Review receipts.";
+            StatusTextBlock.Text = "Shift+Enter only confirms analyzed receipts.";
             return;
         }
 
@@ -320,6 +320,24 @@ public partial class MainWindow : Window
         {
             StatusTextBlock.Text = "Current receipt has no OCR result to confirm.";
             return;
+        }
+
+        if (item.Status is ReceiptQueueStatus.FieldReview or ReceiptQueueStatus.Approved)
+        {
+            var resetResult = System.Windows.MessageBox.Show(
+                this,
+                "OCR Confirmation已完成，是否确认重置？",
+                "Reset OCR Confirmation",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (resetResult != System.Windows.MessageBoxResult.Yes)
+            {
+                StatusTextBlock.Text = "OCR confirmation reset canceled.";
+                return;
+            }
+
+            ResetOcrConfirmation(item);
         }
 
         var analysisResult = item.AnalysisResult;
@@ -330,6 +348,24 @@ public partial class MainWindow : Window
         StartReviewActionCooldown();
         _ = ParseSemanticForReceiptAsync(item, analysisResult);
         MoveToNextReceipt();
+    }
+
+    private void ResetOcrConfirmation(ReceiptImageItem item)
+    {
+        if (item.AnalysisResult is null)
+        {
+            return;
+        }
+
+        item.AnalysisResult = item.AnalysisResult with
+        {
+            SemanticFields = null,
+            ReviewFields = null,
+            SemanticStatus = new SemanticStatus("ollama", "pending_ocr_review", Reason: "reset for OCR reconfirmation")
+        };
+        item.Status = ReceiptQueueStatus.OcrReview;
+        _fieldReviewItems.Clear();
+        AppendDebugDump($"UI OCR confirmation reset: {item.FullPath}");
     }
 
     private async Task ParseSemanticForReceiptAsync(ReceiptImageItem item, ReceiptAnalysisResult analysisResult)
@@ -492,11 +528,21 @@ public partial class MainWindow : Window
                                   selectedItem is { Status: ReceiptQueueStatus.Pending, IsSemanticParsing: false };
         AnalyzeAllPendingButton.IsEnabled = _isOcrWorkerReady && !_isAnalyzeAllRunning && hasPendingItems;
         BatchFillButton.IsEnabled = _images.Any(IsBatchFillEligible);
-        ConfirmOcrButton.IsEnabled = selectedItem is { Status: ReceiptQueueStatus.OcrReview, IsSemanticParsing: false } &&
+        ConfirmOcrButton.IsEnabled = selectedItem is { IsSemanticParsing: false } &&
+                                     CanConfirmOcr(selectedItem) &&
                                      !_isReviewActionCoolingDown;
         ApproveFieldsButton.IsEnabled = selectedItem is { Status: ReceiptQueueStatus.FieldReview, IsSemanticParsing: false } &&
                                         !_isReviewActionCoolingDown;
         NextReceiptButton.IsEnabled = _images.Count > 0;
+    }
+
+    private static bool CanConfirmOcr(ReceiptImageItem? item)
+    {
+        return item is
+        {
+            AnalysisResult: not null,
+            Status: ReceiptQueueStatus.OcrReview or ReceiptQueueStatus.FieldReview or ReceiptQueueStatus.Approved
+        };
     }
 
     private void ReceiptScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -615,6 +661,7 @@ public partial class MainWindow : Window
         {
             Owner = this
         };
+        dialog.SuggestionsUpdated += ReloadProjectProfileSuggestions;
 
         if (dialog.ShowDialog() != true)
         {
@@ -661,6 +708,18 @@ public partial class MainWindow : Window
 
         StatusTextBlock.Text = $"Batch filled {changedFields} field(s) across {changedReceipts} receipt(s).";
         AppendDebugDump($"UI batch fill applied: receipts={changedReceipts}, fields={changedFields}, overwrite={dialog.OverwriteExistingValues}.");
+    }
+
+    private void ReloadProjectProfileSuggestions()
+    {
+        _projectProfile.ReplaceWith(ProjectProfile.Load(_repoRoot));
+
+        if (ImageListBox.SelectedItem is ReceiptImageItem { AnalysisResult: not null } selectedReceipt)
+        {
+            PopulateFieldReviewItems(selectedReceipt.AnalysisResult);
+        }
+
+        AppendDebugDump("UI project suggestions reloaded from data/project_profile.json.");
     }
 
     private IEnumerable<ReceiptImageItem> GetBatchFillTargets(bool applyToAllReviewable)

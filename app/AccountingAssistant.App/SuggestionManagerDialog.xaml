@@ -51,7 +51,8 @@
                                         Click="AddSuggestionButton_Click" />
                                 <TextBox x:Name="NewSuggestionTextBox"
                                          Height="30"
-                                         VerticalContentAlignment="Center" />
+                                         VerticalContentAlignment="Center"
+                                         KeyDown="NewSuggestionTextBox_KeyDown" />
                             </DockPanel>
                         </GroupBox>
                     </Grid>
@@ -66,7 +67,6 @@
             <Button Content="Save"
                     Width="88"
                     Height="30"
-                    IsDefault="True"
                     Click="SaveButton_Click" />
             <Button Content="Cancel"
                     Width="88"
