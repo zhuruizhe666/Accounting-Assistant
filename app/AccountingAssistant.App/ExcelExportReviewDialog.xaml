@@ -1,0 +1,98 @@
+<Window x:Class="AccountingAssistant.App.ExcelExportReviewDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Review Excel Export"
+        Height="560"
+        Width="820"
+        MinHeight="460"
+        MinWidth="720"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Target Excel" Foreground="#555555" />
+            <TextBlock Text="{Binding TargetPath}"
+                       TextWrapping="Wrap"
+                       FontWeight="SemiBold"
+                       Margin="0,2,0,8" />
+            <TextBlock Text="{Binding SummaryText}" Foreground="#666666" />
+        </StackPanel>
+
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding Items}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal"
+                  SelectionMode="Extended">
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Header="Append"
+                                        Binding="{Binding ShouldAppend, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="72" />
+                <DataGridTextColumn Header="Status"
+                                    Binding="{Binding DuplicateStatus}"
+                                    IsReadOnly="True"
+                                    Width="110" />
+                <DataGridTextColumn Header="单号"
+                                    Binding="{Binding DocumentNumber}"
+                                    IsReadOnly="True"
+                                    Width="150" />
+                <DataGridTextColumn Header="文件"
+                                    Binding="{Binding FileName}"
+                                    IsReadOnly="True"
+                                    Width="*" />
+                <DataGridTextColumn Header="日期"
+                                    Binding="{Binding IssueDate}"
+                                    IsReadOnly="True"
+                                    Width="110" />
+                <DataGridTextColumn Header="金额"
+                                    Binding="{Binding TotalAmount}"
+                                    IsReadOnly="True"
+                                    Width="90" />
+                <DataGridTextColumn Header="交易方"
+                                    Binding="{Binding Counterparty}"
+                                    IsReadOnly="True"
+                                    Width="150" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <DockPanel Grid.Row="2" Margin="0,14,0,0">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                <Button Content="Append New Only"
+                        Width="120"
+                        Height="30"
+                        Click="AppendNewOnlyButton_Click" />
+                <Button Content="Append All"
+                        Width="90"
+                        Height="30"
+                        Margin="8,0,0,0"
+                        Click="AppendAllButton_Click" />
+                <Button Content="Append None"
+                        Width="96"
+                        Height="30"
+                        Margin="8,0,0,0"
+                        Click="AppendNoneButton_Click" />
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Content="Export Selected"
+                        Width="120"
+                        Height="30"
+                        IsDefault="True"
+                        Click="ExportSelectedButton_Click" />
+                <Button Content="Cancel"
+                        Width="88"
+                        Height="30"
+                        Margin="8,0,0,0"
+                        IsCancel="True" />
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>
