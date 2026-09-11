@@ -5,15 +5,15 @@ namespace AccountingAssistant.App;
 
 public partial class BatchFillDialog : Window
 {
-    public BatchFillDialog(ProjectProfile profile)
+    private readonly ProjectProfile _profile;
+    private readonly string _repoRoot;
+
+    public BatchFillDialog(ProjectProfile profile, string repoRoot)
     {
         InitializeComponent();
-        DocumentTypeComboBox.ItemsSource = profile.DocumentTypes;
-        CounterpartyComboBox.ItemsSource = profile.Counterparties;
-        ExpenseCategoryComboBox.ItemsSource = profile.ExpenseCategories;
-        ProjectNameComboBox.ItemsSource = profile.ProjectNames;
-        DepartmentComboBox.ItemsSource = profile.Departments;
-        HandlerComboBox.ItemsSource = profile.Handlers;
+        _profile = profile;
+        _repoRoot = repoRoot;
+        RefreshSuggestionSources();
     }
 
     public bool ApplyToAllReviewable => AllReviewableRadioButton.IsChecked == true;
@@ -34,5 +34,45 @@ public partial class BatchFillDialog : Window
     private void ApplyButton_Click(object sender, RoutedEventArgs e)
     {
         DialogResult = true;
+    }
+
+    private void ManageSuggestionsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SuggestionManagerDialog(_profile)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        foreach (var category in dialog.Categories)
+        {
+            var target = _profile.GetMutableSuggestions(category.FieldName);
+            target.Clear();
+            target.AddRange(category.Values);
+        }
+
+        _profile.Save(_repoRoot);
+        RefreshSuggestionSources();
+    }
+
+    private void RefreshSuggestionSources()
+    {
+        DocumentTypeComboBox.ItemsSource = null;
+        CounterpartyComboBox.ItemsSource = null;
+        ExpenseCategoryComboBox.ItemsSource = null;
+        ProjectNameComboBox.ItemsSource = null;
+        DepartmentComboBox.ItemsSource = null;
+        HandlerComboBox.ItemsSource = null;
+
+        DocumentTypeComboBox.ItemsSource = _profile.DocumentTypes;
+        CounterpartyComboBox.ItemsSource = _profile.Counterparties;
+        ExpenseCategoryComboBox.ItemsSource = _profile.ExpenseCategories;
+        ProjectNameComboBox.ItemsSource = _profile.ProjectNames;
+        DepartmentComboBox.ItemsSource = _profile.Departments;
+        HandlerComboBox.ItemsSource = _profile.Handlers;
     }
 }

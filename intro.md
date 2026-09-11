@@ -22,7 +22,7 @@
 3. `Select Folder`：选择文件夹，将其中支持的图片追加进队列。
 4. `Analyze`：分析当前选中的 Pending 图片，只执行 OCR。
 5. `Analyze All`：顺序分析所有 Pending 图片。
-6. `Batch Fill`：批量填写已完成 Analyze 的票据；空输入不修改，默认不覆盖已有值。
+6. `Batch Fill`：批量填写已完成 Analyze 的票据；空输入不修改，默认不覆盖已有值。弹窗里的 `管理建议` 可以维护常用下拉建议。
 7. 在 `OCR` 页检查识别文本；双击某一行可以修正 OCR 文字。
 8. 点击图片上的 OCR 框会选中右侧对应文字；点击右侧文字也会高亮图片上的框。
 9. `Confirm OCR` 或 `Shift+Enter`：确认 OCR 审核，随后在后台调用 Ollama/Qwen 解析字段；界面不会等待在当前票据上。
@@ -75,4 +75,4 @@
 }
 ```
 
-当前版本只读取这些常用值，不提供 UI 管理页面。可以直接编辑 JSON 文件来增加选项。
+可以在 `Batch Fill` 弹窗中点击 `管理建议` 来新增或删除常用值；保存后会写回 `data/project_profile.json`。

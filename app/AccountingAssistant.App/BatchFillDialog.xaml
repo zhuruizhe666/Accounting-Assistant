@@ -15,7 +15,17 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock Text="Only non-empty values will be applied." Foreground="#555555" />
+            <DockPanel>
+                <TextBlock Text="Only non-empty values will be applied."
+                           Foreground="#555555"
+                           VerticalAlignment="Center" />
+                <Button Content="管理建议"
+                        DockPanel.Dock="Right"
+                        Width="88"
+                        Height="28"
+                        HorizontalAlignment="Right"
+                        Click="ManageSuggestionsButton_Click" />
+            </DockPanel>
             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                 <RadioButton x:Name="SelectedReceiptsRadioButton"
                              Content="Selected"

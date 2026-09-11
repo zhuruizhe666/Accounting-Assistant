@@ -1,19 +1,19 @@
 {
   "document_types": [
-    "发票",
-    "收据",
-    "银行回单",
-    "行程单",
-    "其他"
+    "\u5176\u4ED6",
+    "\u53D1\u7968",
+    "\u6536\u636E",
+    "\u884C\u7A0B\u5355",
+    "\u94F6\u884C\u56DE\u5355"
   ],
   "counterparties": [],
   "expense_categories": [
-    "办公费",
-    "差旅费",
-    "交通费",
-    "材料费",
-    "咨询服务费",
-    "其他"
+    "\u4EA4\u901A\u8D39",
+    "\u5176\u4ED6",
+    "\u529E\u516C\u8D39",
+    "\u54A8\u8BE2\u670D\u52A1\u8D39",
+    "\u5DEE\u65C5\u8D39",
+    "\u6750\u6599\u8D39"
   ],
   "project_names": [],
   "departments": [],

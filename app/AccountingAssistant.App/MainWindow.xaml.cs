@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<ReceiptImageItem> _images = [];
     private readonly ObservableCollection<OcrDisplayItem> _ocrDisplayItems = [];
     private readonly ObservableCollection<FieldReviewItem> _fieldReviewItems = [];
+    private readonly string _repoRoot;
     private readonly ProjectProfile _projectProfile;
     private readonly PythonWorkerClient _workerClient = new();
     private bool _isReviewActionCoolingDown;
@@ -67,7 +68,8 @@ public partial class MainWindow : Window
         ImageListBox.ItemsSource = _images;
         OcrResultListBox.ItemsSource = _ocrDisplayItems;
         FieldReviewListBox.ItemsSource = _fieldReviewItems;
-        _projectProfile = ProjectProfile.Load(FindRepoRoot(AppContext.BaseDirectory));
+        _repoRoot = FindRepoRoot(AppContext.BaseDirectory);
+        _projectProfile = ProjectProfile.Load(_repoRoot);
         _workerClient.DebugOutputReceived += AppendDebugDump;
         StatusTextBlock.Text = "Ready. Select receipt images to start.";
         Loaded += MainWindow_Loaded;
@@ -609,7 +611,7 @@ public partial class MainWindow : Window
 
     private void OpenBatchFillDialog()
     {
-        var dialog = new BatchFillDialog(_projectProfile)
+        var dialog = new BatchFillDialog(_projectProfile, _repoRoot)
         {
             Owner = this
         };

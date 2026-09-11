@@ -4,15 +4,32 @@ using System.Text.Json.Serialization;
 
 namespace AccountingAssistant.App.Models;
 
-public sealed record ProjectProfile(
-    [property: JsonPropertyName("document_types")] IReadOnlyList<string> DocumentTypes,
-    [property: JsonPropertyName("counterparties")] IReadOnlyList<string> Counterparties,
-    [property: JsonPropertyName("expense_categories")] IReadOnlyList<string> ExpenseCategories,
-    [property: JsonPropertyName("project_names")] IReadOnlyList<string> ProjectNames,
-    [property: JsonPropertyName("departments")] IReadOnlyList<string> Departments,
-    [property: JsonPropertyName("handlers")] IReadOnlyList<string> Handlers)
+public sealed class ProjectProfile
 {
-    public static ProjectProfile Empty { get; } = new([], [], [], [], [], []);
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
+    [JsonPropertyName("document_types")]
+    public List<string> DocumentTypes { get; set; } = [];
+
+    [JsonPropertyName("counterparties")]
+    public List<string> Counterparties { get; set; } = [];
+
+    [JsonPropertyName("expense_categories")]
+    public List<string> ExpenseCategories { get; set; } = [];
+
+    [JsonPropertyName("project_names")]
+    public List<string> ProjectNames { get; set; } = [];
+
+    [JsonPropertyName("departments")]
+    public List<string> Departments { get; set; } = [];
+
+    [JsonPropertyName("handlers")]
+    public List<string> Handlers { get; set; } = [];
+
+    public static ProjectProfile Empty => new();
 
     public static ProjectProfile Load(string repoRoot)
     {
@@ -23,10 +40,21 @@ public sealed record ProjectProfile(
         }
 
         var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<ProjectProfile>(json, new JsonSerializerOptions
+        var profile = JsonSerializer.Deserialize<ProjectProfile>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         }) ?? Empty;
+        profile.Normalize();
+        return profile;
+    }
+
+    public void Save(string repoRoot)
+    {
+        Normalize();
+        var dataDirectory = Path.Combine(repoRoot, "data");
+        Directory.CreateDirectory(dataDirectory);
+        var path = Path.Combine(dataDirectory, "project_profile.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(this, JsonOptions));
     }
 
     public IReadOnlyList<string> GetSuggestions(string fieldName)
@@ -41,5 +69,41 @@ public sealed record ProjectProfile(
             "handler" => Handlers,
             _ => []
         };
+    }
+
+    public List<string> GetMutableSuggestions(string fieldName)
+    {
+        return fieldName switch
+        {
+            "counterparty_name" => Counterparties,
+            "expense_category" => ExpenseCategories,
+            "project_name" => ProjectNames,
+            "department" => Departments,
+            "handler" => Handlers,
+            _ => throw new ArgumentOutOfRangeException(nameof(fieldName), fieldName, "Unsupported suggestion field.")
+        };
+    }
+
+    private void Normalize()
+    {
+        NormalizeList(DocumentTypes);
+        NormalizeList(Counterparties);
+        NormalizeList(ExpenseCategories);
+        NormalizeList(ProjectNames);
+        NormalizeList(Departments);
+        NormalizeList(Handlers);
+    }
+
+    private static void NormalizeList(List<string> values)
+    {
+        var normalized = values
+            .Select(value => value.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        values.Clear();
+        values.AddRange(normalized);
     }
 }
