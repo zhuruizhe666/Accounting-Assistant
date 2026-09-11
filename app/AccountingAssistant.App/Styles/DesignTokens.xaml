@@ -14,50 +14,59 @@
     <system:Double x:Key="FontSizePageTitle">22</system:Double>
 
     <!-- Core palette -->
-    <Color x:Key="AppBackgroundColor">#FFF4F7FB</Color>
-    <Color x:Key="SurfaceColor">#FFFFFFFF</Color>
-    <Color x:Key="SurfaceSubtleColor">#FFF8FAFC</Color>
-    <Color x:Key="SurfaceHoverColor">#FFEEF3F8</Color>
-    <Color x:Key="SurfacePressedColor">#FFE4EBF3</Color>
-    <Color x:Key="BorderColor">#FFD8E0EA</Color>
-    <Color x:Key="BorderStrongColor">#FFB9C5D3</Color>
+    <Color x:Key="AppBackgroundColor">#FF1E1F22</Color>
+    <Color x:Key="SurfaceColor">#FF282A2F</Color>
+    <Color x:Key="SurfaceSubtleColor">#FF24262B</Color>
+    <Color x:Key="PreviewWorkspaceColor">#FF191A1E</Color>
+    <Color x:Key="SurfaceHoverColor">#FF32343A</Color>
+    <Color x:Key="SurfacePressedColor">#FF3A3C43</Color>
+    <Color x:Key="BorderColor">#FF41434A</Color>
+    <Color x:Key="BorderStrongColor">#FF595B64</Color>
 
-    <Color x:Key="TextPrimaryColor">#FF172033</Color>
-    <Color x:Key="TextSecondaryColor">#FF536176</Color>
-    <Color x:Key="TextMutedColor">#FF7B8798</Color>
+    <Color x:Key="TextPrimaryColor">#FFE4E2E7</Color>
+    <Color x:Key="TextSecondaryColor">#FFAAA7B0</Color>
+    <Color x:Key="TextMutedColor">#FF817E88</Color>
 
-    <Color x:Key="AccentColor">#FF2563EB</Color>
-    <Color x:Key="AccentHoverColor">#FF1D4ED8</Color>
-    <Color x:Key="AccentPressedColor">#FF1E40AF</Color>
-    <Color x:Key="AccentSoftColor">#FFE8F0FE</Color>
-    <Color x:Key="FocusColor">#FF60A5FA</Color>
+    <Color x:Key="AccentColor">#FFA99BC8</Color>
+    <Color x:Key="AccentHoverColor">#FFB8AAD2</Color>
+    <Color x:Key="AccentPressedColor">#FF75688F</Color>
+    <Color x:Key="AccentSoftColor">#FF383442</Color>
+    <Color x:Key="AccentContrastColor">#FF1E1F22</Color>
+    <Color x:Key="AccentTextColor">#FFC5B9DB</Color>
+    <Color x:Key="FocusColor">#FFB8AAD2</Color>
 
-    <Color x:Key="DisabledSurfaceColor">#FFEDF1F5</Color>
-    <Color x:Key="DisabledTextColor">#FF98A2B3</Color>
-    <Color x:Key="SuccessColor">#FF2F7D57</Color>
-    <Color x:Key="SuccessSoftColor">#FFE8F5EE</Color>
-    <Color x:Key="WarningColor">#FFA76508</Color>
-    <Color x:Key="WarningSoftColor">#FFFFF3D6</Color>
-    <Color x:Key="DangerColor">#FFC2413B</Color>
-    <Color x:Key="DangerHoverColor">#FFA93632</Color>
-    <Color x:Key="DangerPressedColor">#FF8F2C29</Color>
-    <Color x:Key="DangerSoftColor">#FFFCEAE8</Color>
+    <Color x:Key="DisabledSurfaceColor">#FF303238</Color>
+    <Color x:Key="DisabledTextColor">#FF706D77</Color>
+    <Color x:Key="SuccessColor">#FF78C69A</Color>
+    <Color x:Key="SuccessSoftColor">#FF24372D</Color>
+    <Color x:Key="WarningColor">#FFE2B766</Color>
+    <Color x:Key="WarningSoftColor">#FF3A3123</Color>
+    <Color x:Key="DangerColor">#FFE27D78</Color>
+    <Color x:Key="DangerHoverColor">#FFF08D87</Color>
+    <Color x:Key="DangerPressedColor">#FFB95E5A</Color>
+    <Color x:Key="DangerSoftColor">#FF3D292B</Color>
 
     <!-- Receipt workflow status palette; base colors match ReceiptImageItem.StatusBrush. -->
-    <Color x:Key="PendingStatusColor">#FF808080</Color>
-    <Color x:Key="PendingStatusForegroundColor">#FF565D66</Color>
-    <Color x:Key="PendingStatusSoftColor">#FFF2F3F4</Color>
-    <Color x:Key="OcrReviewStatusColor">#FFFFA500</Color>
-    <Color x:Key="OcrReviewStatusForegroundColor">#FF995D00</Color>
-    <Color x:Key="OcrReviewStatusSoftColor">#FFFFF2D8</Color>
-    <Color x:Key="FieldReviewStatusColor">#FF008000</Color>
-    <Color x:Key="FieldReviewStatusForegroundColor">#FF166A2C</Color>
-    <Color x:Key="FieldReviewStatusSoftColor">#FFE6F4E8</Color>
+    <Color x:Key="PendingStatusColor">#FF77747D</Color>
+    <Color x:Key="PendingStatusForegroundColor">#FFB8B5BE</Color>
+    <Color x:Key="PendingStatusSoftColor">#FF303136</Color>
+    <Color x:Key="OcrReviewStatusColor">#FFD0A45B</Color>
+    <Color x:Key="OcrReviewStatusForegroundColor">#FFE8C47D</Color>
+    <Color x:Key="OcrReviewStatusSoftColor">#FF392F22</Color>
+    <Color x:Key="FieldReviewStatusColor">#FF6FB58C</Color>
+    <Color x:Key="FieldReviewStatusForegroundColor">#FF8FD0A8</Color>
+    <Color x:Key="FieldReviewStatusSoftColor">#FF23352B</Color>
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
     <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="{StaticResource SurfaceSubtleColor}" />
+    <SolidColorBrush x:Key="PreviewWorkspaceBrush" Color="{StaticResource PreviewWorkspaceColor}" />
+    <LinearGradientBrush x:Key="WorkspaceAmbientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0" Color="#FF222328" />
+        <GradientStop Offset="0.52" Color="#FF1E1F22" />
+        <GradientStop Offset="1" Color="#FF1A1B1F" />
+    </LinearGradientBrush>
     <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}" />
     <SolidColorBrush x:Key="SurfacePressedBrush" Color="{StaticResource SurfacePressedColor}" />
     <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />
@@ -69,6 +78,8 @@
     <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
     <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}" />
     <SolidColorBrush x:Key="AccentSoftBrush" Color="{StaticResource AccentSoftColor}" />
+    <SolidColorBrush x:Key="AccentContrastBrush" Color="{StaticResource AccentContrastColor}" />
+    <SolidColorBrush x:Key="AccentTextBrush" Color="{StaticResource AccentTextColor}" />
     <SolidColorBrush x:Key="FocusBrush" Color="{StaticResource FocusColor}" />
     <SolidColorBrush x:Key="DisabledSurfaceBrush" Color="{StaticResource DisabledSurfaceColor}" />
     <SolidColorBrush x:Key="DisabledTextBrush" Color="{StaticResource DisabledTextColor}" />

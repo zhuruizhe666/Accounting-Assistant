@@ -51,7 +51,7 @@
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
-                    <Setter Property="Foreground" Value="{StaticResource AccentPressedBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -75,7 +75,7 @@
                                   Width="10"
                                   Height="8"
                                   Data="M 1,4 L 4,7 L 9,1"
-                                  Stroke="White"
+                                  Stroke="{StaticResource AccentContrastBrush}"
                                   StrokeThickness="2"
                                   StrokeStartLineCap="Round"
                                   StrokeEndLineCap="Round"
@@ -212,7 +212,7 @@
                 Margin="0,0,0,12"
                 Padding="12,9"
                 Background="{StaticResource WarningSoftBrush}"
-                BorderBrush="#FFE5C56B"
+                BorderBrush="{StaticResource WarningBrush}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource RadiusSmall}">
             <Border.Style>

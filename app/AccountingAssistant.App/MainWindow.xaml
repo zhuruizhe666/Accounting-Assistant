@@ -6,6 +6,7 @@
         Width="1160"
         MinHeight="640"
         MinWidth="980"
+        Background="{StaticResource WorkspaceAmbientBrush}"
         SizeChanged="Window_SizeChanged">
     <Window.InputBindings>
         <KeyBinding Key="Enter" Modifiers="Shift" Command="{Binding ConfirmOcrCommand}" />
@@ -131,7 +132,7 @@
                     PreviewDragOver="ReceiptQueue_DragOver"
                     PreviewDragLeave="ReceiptQueue_DragLeave"
                     PreviewDrop="ReceiptQueue_Drop"
-                    Style="{StaticResource WorkspacePanelStyle}">
+                    Style="{StaticResource WorkspaceColumnPanelStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -248,7 +249,7 @@
                                            HorizontalAlignment="Center"
                                            FontSize="{StaticResource FontSizeBodyLarge}"
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource AccentPressedBrush}" />
+                                           Foreground="{StaticResource AccentTextBrush}" />
                                 <TextBlock Text="JPG, JPEG, PNG, or a folder"
                                            Margin="0,4,0,0"
                                            HorizontalAlignment="Center"
@@ -260,7 +261,7 @@
             </Border>
 
             <!-- Receipt preview -->
-            <Border Grid.Column="2" Style="{StaticResource WorkspacePanelStyle}">
+            <Border Grid.Column="2" Style="{StaticResource PrimaryWorkspacePanelStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -276,7 +277,7 @@
 
                     <Border Grid.Row="1"
                             Margin="1,0,1,1"
-                            Background="{StaticResource SurfaceSubtleBrush}"
+                            Background="{StaticResource PreviewWorkspaceBrush}"
                             BorderBrush="{StaticResource BorderBrush}"
                             BorderThickness="0,1,0,0"
                             CornerRadius="0,0,11,11">
@@ -342,7 +343,7 @@
             </Border>
 
             <!-- Review panel -->
-            <Border Grid.Column="4" Style="{StaticResource WorkspacePanelStyle}">
+            <Border Grid.Column="4" Style="{StaticResource WorkspaceColumnPanelStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

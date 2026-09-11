@@ -15,7 +15,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock x:Name="HeaderTextBlock"
-                   Foreground="#555555"
+                   Foreground="{StaticResource TextSecondaryBrush}"
                    TextWrapping="Wrap" />
 
         <TextBox x:Name="OcrTextBox"

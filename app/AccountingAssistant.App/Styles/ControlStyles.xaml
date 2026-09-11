@@ -31,6 +31,35 @@
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
+    <Style x:Key="WorkspaceColumnPanelStyle"
+           TargetType="Border"
+           BasedOn="{StaticResource WorkspacePanelStyle}">
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#FF0E0D12"
+                                  Direction="270"
+                                  ShadowDepth="3"
+                                  BlurRadius="14"
+                                  Opacity="0.42" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PrimaryWorkspacePanelStyle"
+           TargetType="Border"
+           BasedOn="{StaticResource WorkspaceColumnPanelStyle}">
+        <Setter Property="BorderBrush" Value="{StaticResource BorderStrongBrush}" />
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#FF0B0A0F"
+                                  Direction="270"
+                                  ShadowDepth="5"
+                                  BlurRadius="20"
+                                  Opacity="0.5" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="SectionTitleTextStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource AppDisplayFontFamily}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizePanelTitle}" />
@@ -106,7 +135,7 @@
     <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
         <Setter Property="Background" Value="{StaticResource AccentBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource AccentContrastBrush}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -207,7 +236,7 @@
     <Style x:Key="QueueAddButtonStyle" TargetType="Button" BasedOn="{StaticResource StatusActionButtonStyle}">
         <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource FocusBrush}" />
-        <Setter Property="Foreground" Value="{StaticResource AccentPressedBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
     </Style>
 
     <Style x:Key="RollbackActionButtonStyle" TargetType="Button" BasedOn="{StaticResource StatusActionButtonStyle}">
@@ -229,7 +258,7 @@
     <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
         <Setter Property="Background" Value="{StaticResource DangerBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
-        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Foreground" Value="{StaticResource AccentContrastBrush}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -381,7 +410,7 @@
                             <Setter TargetName="ChoiceBorder" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
                             <Setter TargetName="SelectionRing" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             <Setter TargetName="SelectionDot" Property="Visibility" Value="Visible" />
-                            <Setter Property="Foreground" Value="{StaticResource AccentPressedBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="ChoiceBorder" Property="Opacity" Value="0.5" />
@@ -425,7 +454,7 @@
                                          Height="14"
                                          Margin="3"
                                          HorizontalAlignment="Left"
-                                         Fill="White" />
+                                         Fill="{StaticResource TextPrimaryBrush}" />
                             </Border>
                             <ContentPresenter Grid.Column="1"
                                               Margin="10,0,0,0"
@@ -485,7 +514,7 @@
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource AccentSoftBrush}" />
                             <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource FocusBrush}" />
-                            <Setter Property="Foreground" Value="{StaticResource AccentPressedBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{StaticResource DisabledTextBrush}" />
@@ -534,7 +563,7 @@
                             <Setter TargetName="TabBackground" Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Foreground" Value="{StaticResource AccentPressedBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
                             <Setter TargetName="TabBackground" Property="Background" Value="{StaticResource SurfaceBrush}" />
                             <Setter TargetName="SelectionIndicator" Property="Background" Value="{StaticResource AccentBrush}" />
                         </Trigger>

@@ -22,7 +22,7 @@
                               ShadowDepth="8"
                               Direction="270"
                               Opacity="0.18"
-                              Color="#30445F" />
+                              Color="#0C0B10" />
         </Border.Effect>
 
         <Grid>
