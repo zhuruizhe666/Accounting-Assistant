@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private readonly string _repoRoot;
     private readonly ProjectProfile _projectProfile;
     private readonly PythonWorkerClient _workerClient = new();
+    private readonly ExcelExportService _excelExportService = new();
     private bool _isReviewActionCoolingDown;
     private bool _isReceiptLayoutUpdateQueued;
     private bool _isOcrWorkerReady;
@@ -143,7 +144,9 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            _images.Add(new ReceiptImageItem(fileName));
+            var item = new ReceiptImageItem(fileName);
+            item.PropertyChanged += ReceiptImageItem_PropertyChanged;
+            _images.Add(item);
             addedCount++;
         }
 
@@ -289,6 +292,11 @@ public partial class MainWindow : Window
     private void BatchFillButton_Click(object sender, RoutedEventArgs e)
     {
         OpenBatchFillDialog();
+    }
+
+    private void ExportExcelButton_Click(object sender, RoutedEventArgs e)
+    {
+        ExportApprovedReceiptsToExcel();
     }
 
     private void NextReceiptButton_Click(object sender, RoutedEventArgs e)
@@ -528,12 +536,67 @@ public partial class MainWindow : Window
                                   selectedItem is { Status: ReceiptQueueStatus.Pending, IsSemanticParsing: false };
         AnalyzeAllPendingButton.IsEnabled = _isOcrWorkerReady && !_isAnalyzeAllRunning && hasPendingItems;
         BatchFillButton.IsEnabled = _images.Any(IsBatchFillEligible);
+        ExportExcelButton.IsEnabled = _images.Any(item => item.Status == ReceiptQueueStatus.Approved);
         ConfirmOcrButton.IsEnabled = selectedItem is { IsSemanticParsing: false } &&
                                      CanConfirmOcr(selectedItem) &&
                                      !_isReviewActionCoolingDown;
         ApproveFieldsButton.IsEnabled = selectedItem is { Status: ReceiptQueueStatus.FieldReview, IsSemanticParsing: false } &&
                                         !_isReviewActionCoolingDown;
         NextReceiptButton.IsEnabled = _images.Count > 0;
+    }
+
+    private void ReceiptImageItem_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is not ReceiptImageItem item ||
+            e.PropertyName is not (nameof(ReceiptImageItem.Status) or nameof(ReceiptImageItem.IsSemanticParsing)))
+        {
+            return;
+        }
+
+        MoveReceiptToStagePosition(item);
+        UpdateActionButtonsEnabled();
+    }
+
+    private void MoveReceiptToStagePosition(ReceiptImageItem item)
+    {
+        var currentIndex = _images.IndexOf(item);
+        if (currentIndex < 0)
+        {
+            return;
+        }
+
+        var targetStage = GetQueueStageOrder(item);
+        var targetIndex = _images
+            .Where(candidate => !ReferenceEquals(candidate, item))
+            .Count(candidate => GetQueueStageOrder(candidate) <= targetStage);
+
+        if (targetIndex == currentIndex)
+        {
+            return;
+        }
+
+        _images.Move(currentIndex, targetIndex);
+        ImageListBox.ScrollIntoView(item);
+        AppendDebugDump($"UI receipt repositioned by stage: stage={item.StatusText}, index={targetIndex}, path={item.FullPath}");
+    }
+
+    private static int GetQueueStageOrder(ReceiptImageItem item)
+    {
+        if (item.IsSemanticParsing)
+        {
+            return 3;
+        }
+
+        return item.Status switch
+        {
+            ReceiptQueueStatus.Pending => 0,
+            ReceiptQueueStatus.Processing => 1,
+            ReceiptQueueStatus.OcrReview => 2,
+            ReceiptQueueStatus.FieldReview => 4,
+            ReceiptQueueStatus.Approved => 5,
+            ReceiptQueueStatus.Error => 6,
+            _ => 6
+        };
     }
 
     private static bool CanConfirmOcr(ReceiptImageItem? item)
@@ -720,6 +783,101 @@ public partial class MainWindow : Window
         }
 
         AppendDebugDump("UI project suggestions reloaded from data/project_profile.json.");
+    }
+
+    private void ExportApprovedReceiptsToExcel()
+    {
+        if (ImageListBox.SelectedItem is ReceiptImageItem { Status: ReceiptQueueStatus.Approved } selectedReceipt)
+        {
+            SyncFieldReviewItemsToReceipt(selectedReceipt);
+        }
+
+        var approvedReceipts = _images
+            .Where(item => item.Status == ReceiptQueueStatus.Approved && item.AnalysisResult?.ReviewFields is not null)
+            .ToList();
+        if (approvedReceipts.Count == 0)
+        {
+            StatusTextBlock.Text = "No approved receipts to export.";
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Export approved receipts to Excel",
+            Filter = "Excel workbook (*.xlsx)|*.xlsx",
+            DefaultExt = ".xlsx",
+            AddExtension = true,
+            OverwritePrompt = false,
+            FileName = "receipts_export.xlsx"
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            StatusTextBlock.Text = "Excel export canceled.";
+            return;
+        }
+
+        var exportRows = approvedReceipts
+            .Select(BuildExcelReceiptRow)
+            .ToList();
+
+        try
+        {
+            var exportedCount = _excelExportService.AppendRows(dialog.FileName, exportRows);
+            StatusTextBlock.Text = $"Exported {exportedCount} approved receipt(s) to Excel.";
+            AppendDebugDump($"UI Excel export completed: rows={exportedCount}, path={dialog.FileName}");
+        }
+        catch (PerfectFormatMismatchException)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                ExcelExportService.BuildPerfectFormatGuide(),
+                "Excel Format Rejected",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+            StatusTextBlock.Text = "Excel export rejected: target file is not Perfect Format.";
+            AppendDebugDump($"UI Excel export rejected by perfect format check: path={dialog.FileName}");
+        }
+        catch (Exception ex)
+        {
+            StatusTextBlock.Text = "Excel export failed. Check Debug Dump.";
+            AppendDebugDump($"UI Excel export failed: {ex}");
+        }
+    }
+
+    private static ExcelReceiptRow BuildExcelReceiptRow(ReceiptImageItem item)
+    {
+        var result = item.AnalysisResult;
+        var fields = result?.ReviewFields ?? [];
+        var exportedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        return new ExcelReceiptRow(
+        [
+            GetReviewedFieldValue(fields, "issue_date"),
+            GetReviewedFieldValue(fields, "document_number"),
+            GetReviewedFieldValue(fields, "document_type"),
+            GetReviewedFieldValue(fields, "counterparty_name"),
+            GetReviewedFieldValue(fields, "total_amount"),
+            GetReviewedFieldValue(fields, "tax_amount"),
+            GetReviewedFieldValue(fields, "expense_category"),
+            GetReviewedFieldValue(fields, "project_name"),
+            GetReviewedFieldValue(fields, "department"),
+            GetReviewedFieldValue(fields, "handler"),
+            GetReviewedFieldValue(fields, "summary"),
+            GetReviewedFieldValue(fields, "notes"),
+            item.FullPath,
+            result?.Status ?? string.Empty,
+            item.StatusText,
+            exportedAt
+        ]);
+    }
+
+    private static string GetReviewedFieldValue(
+        IReadOnlyDictionary<string, ReviewedField> fields,
+        string fieldName)
+    {
+        return fields.TryGetValue(fieldName, out var field)
+            ? field.Value
+            : string.Empty;
     }
 
     private IEnumerable<ReceiptImageItem> GetBatchFillTargets(bool applyToAllReviewable)

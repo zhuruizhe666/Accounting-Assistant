@@ -26,6 +26,7 @@
                     <Button x:Name="AnalyzeButton" Content="Analyze" Width="120" Height="34" Click="AnalyzeButton_Click" />
                     <Button x:Name="AnalyzeAllPendingButton" Content="Analyze All" Width="120" Height="34" Margin="8,0,0,0" Click="AnalyzeAllPendingButton_Click" />
                     <Button x:Name="BatchFillButton" Content="Batch Fill" Width="120" Height="34" Margin="8,0,0,0" Click="BatchFillButton_Click" />
+                    <Button x:Name="ExportExcelButton" Content="Export Excel" Width="120" Height="34" Margin="8,0,0,0" Click="ExportExcelButton_Click" />
                 </StackPanel>
             </StackPanel>
             <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#555555" />
