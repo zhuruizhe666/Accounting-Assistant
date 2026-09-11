@@ -34,6 +34,13 @@ public partial class MainWindow : Window
         new("notes", "备注")
     ];
 
+    private static readonly HashSet<string> SupportedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg",
+        ".jpeg",
+        ".png"
+    };
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true
@@ -79,6 +86,7 @@ public partial class MainWindow : Window
         _projectProfile = ProjectProfile.Load(_repoRoot);
         _workerClient.DebugOutputReceived += AppendDebugDump;
         StatusTextBlock.Text = "Ready. Select receipt images to start.";
+        UpdateActionButtonsEnabled();
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
     }
@@ -125,6 +133,107 @@ public partial class MainWindow : Window
     {
         AppendDebugDump("UI select folder requested.");
         LoadImages(SelectImagesFromFolder(), "No supported images found in folder.");
+    }
+
+    private void ReceiptQueue_DragEnter(object sender, System.Windows.DragEventArgs e)
+    {
+        UpdateReceiptDropFeedback(e);
+    }
+
+    private void ReceiptQueue_DragOver(object sender, System.Windows.DragEventArgs e)
+    {
+        UpdateReceiptDropFeedback(e);
+    }
+
+    private void ReceiptQueue_DragLeave(object sender, System.Windows.DragEventArgs e)
+    {
+        ResetReceiptDropFeedback();
+        e.Handled = true;
+    }
+
+    private void ReceiptQueue_Drop(object sender, System.Windows.DragEventArgs e)
+    {
+        var droppedPaths = e.Data.GetData(System.Windows.DataFormats.FileDrop) as string[] ?? [];
+        ResetReceiptDropFeedback();
+
+        if (droppedPaths.Length == 0)
+        {
+            StatusTextBlock.Text = "Drop skipped: no files or folders received.";
+            e.Handled = true;
+            return;
+        }
+
+        AppendDebugDump($"UI receipt drop received: paths={droppedPaths.Length}.");
+        LoadImages(ExpandDroppedImagePaths(droppedPaths), "No supported images found in dropped items.");
+        e.Handled = true;
+    }
+
+    private void UpdateReceiptDropFeedback(System.Windows.DragEventArgs e)
+    {
+        var canAccept = ContainsSupportedDrop(e.Data);
+        e.Effects = canAccept ? System.Windows.DragDropEffects.Copy : System.Windows.DragDropEffects.None;
+        ReceiptDropOverlay.Visibility = canAccept ? Visibility.Visible : Visibility.Collapsed;
+
+        if (canAccept)
+        {
+            ReceiptQueuePanel.BorderBrush = (System.Windows.Media.Brush)FindResource("AccentBrush");
+        }
+        else
+        {
+            ReceiptQueuePanel.ClearValue(Border.BorderBrushProperty);
+        }
+
+        e.Handled = true;
+    }
+
+    private void ResetReceiptDropFeedback()
+    {
+        ReceiptDropOverlay.Visibility = Visibility.Collapsed;
+        ReceiptQueuePanel.ClearValue(Border.BorderBrushProperty);
+    }
+
+    private static bool ContainsSupportedDrop(System.Windows.IDataObject data)
+    {
+        if (!data.GetDataPresent(System.Windows.DataFormats.FileDrop) ||
+            data.GetData(System.Windows.DataFormats.FileDrop) is not string[] paths)
+        {
+            return false;
+        }
+
+        return paths.Any(path => Directory.Exists(path) || IsSupportedImageFile(path));
+    }
+
+    private IReadOnlyList<string> ExpandDroppedImagePaths(IEnumerable<string> droppedPaths)
+    {
+        var imagePaths = new List<string>();
+
+        foreach (var path in droppedPaths)
+        {
+            if (File.Exists(path) && IsSupportedImageFile(path))
+            {
+                imagePaths.Add(path);
+                continue;
+            }
+
+            if (!Directory.Exists(path))
+            {
+                continue;
+            }
+
+            try
+            {
+                imagePaths.AddRange(EnumerateSupportedImageFiles(path));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                AppendDebugDump($"UI receipt drop folder skipped: path={path}, reason={ex.Message}");
+            }
+        }
+
+        return imagePaths
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private void LoadImages(IReadOnlyList<string> selectedFiles, string emptyMessage)
@@ -196,18 +305,21 @@ public partial class MainWindow : Window
             return [];
         }
 
-        var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ".jpg",
-            ".jpeg",
-            ".png"
-        };
+        return EnumerateSupportedImageFiles(dialog.SelectedPath);
+    }
 
+    private static IReadOnlyList<string> EnumerateSupportedImageFiles(string folderPath)
+    {
         return Directory
-            .EnumerateFiles(dialog.SelectedPath)
-            .Where(path => extensions.Contains(System.IO.Path.GetExtension(path)))
+            .EnumerateFiles(folderPath)
+            .Where(IsSupportedImageFile)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static bool IsSupportedImageFile(string path)
+    {
+        return SupportedImageExtensions.Contains(System.IO.Path.GetExtension(path));
     }
 
     private void ImageListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -315,6 +427,49 @@ public partial class MainWindow : Window
         SortReceiptQueueByStage();
     }
 
+    private void RemoveReceiptsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedReceipts = ImageListBox.SelectedItems
+            .OfType<ReceiptImageItem>()
+            .ToList();
+
+        if (selectedReceipts.Count == 0)
+        {
+            StatusTextBlock.Text = "Select one or more receipts to remove.";
+            return;
+        }
+
+        if (_isAnalyzeAllRunning ||
+            selectedReceipts.Any(receipt => receipt.Status == ReceiptQueueStatus.Processing || receipt.IsSemanticParsing))
+        {
+            StatusTextBlock.Text = "Wait for active receipt processing to finish before removing it.";
+            return;
+        }
+
+        var nextSelectionIndex = selectedReceipts
+            .Select(_images.IndexOf)
+            .Where(index => index >= 0)
+            .DefaultIfEmpty(0)
+            .Min();
+
+        ImageListBox.SelectedItems.Clear();
+        foreach (var receipt in selectedReceipts)
+        {
+            receipt.PropertyChanged -= ReceiptImageItem_PropertyChanged;
+            _images.Remove(receipt);
+        }
+
+        if (_images.Count > 0)
+        {
+            ImageListBox.SelectedIndex = Math.Min(nextSelectionIndex, _images.Count - 1);
+            ImageListBox.ScrollIntoView(ImageListBox.SelectedItem);
+        }
+
+        StatusTextBlock.Text = $"Removed {selectedReceipts.Count} receipt(s). Queue total: {_images.Count}.";
+        AppendDebugDump($"UI receipts removed from queue: removed={selectedReceipts.Count}, total={_images.Count}.");
+        UpdateActionButtonsEnabled();
+    }
+
     private void ConfirmSelectedOcrReview()
     {
         if (_isReviewActionCoolingDown)
@@ -343,14 +498,15 @@ public partial class MainWindow : Window
 
         if (item.Status is ReceiptQueueStatus.FieldReview or ReceiptQueueStatus.Approved)
         {
-            var resetResult = System.Windows.MessageBox.Show(
+            var shouldReset = ConfirmationDialog.ShowConfirmation(
                 this,
-                "OCR Confirmation已完成，是否确认重置？",
-                "Reset OCR Confirmation",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning);
+                "Reset OCR confirmation?",
+                "OCR confirmation is already complete. Reset it and return this receipt to OCR Review?",
+                "Reset OCR",
+                "Keep current",
+                isDestructive: true);
 
-            if (resetResult != System.Windows.MessageBoxResult.Yes)
+            if (!shouldReset)
             {
                 StatusTextBlock.Text = "OCR confirmation reset canceled.";
                 return;
@@ -440,9 +596,15 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (item.Status == ReceiptQueueStatus.Approved)
+        {
+            RollBackApprovedReceipt(item);
+            return;
+        }
+
         if (item.Status != ReceiptQueueStatus.FieldReview)
         {
-            StatusTextBlock.Text = "Ctrl+Enter only approves Field Review receipts.";
+            StatusTextBlock.Text = "Ctrl+Enter only approves Field Review or rolls back Approved receipts.";
             return;
         }
 
@@ -452,6 +614,24 @@ public partial class MainWindow : Window
         AppendDebugDump($"UI field review approved: {item.FullPath}");
         StartReviewActionCooldown();
         MoveToNextReceipt();
+    }
+
+    private void RollBackApprovedReceipt(ReceiptImageItem item)
+    {
+        if (item.AnalysisResult?.ReviewFields is null)
+        {
+            StatusTextBlock.Text = "Rollback failed: approved receipt has no review fields.";
+            AppendDebugDump($"UI approved receipt rollback rejected: missing review fields, path={item.FullPath}");
+            return;
+        }
+
+        item.Status = ReceiptQueueStatus.FieldReview;
+        PopulateFieldReviewItems(item.AnalysisResult);
+        ReviewTabControl.SelectedIndex = 1;
+        FieldReviewListBox.Focus();
+        StatusTextBlock.Text = $"{item.FileName} rolled back to Field Review.";
+        AppendDebugDump($"UI approved receipt rolled back to Field Review: {item.FullPath}");
+        UpdateActionButtonsEnabled();
     }
 
     private async void StartReviewActionCooldown()
@@ -542,6 +722,11 @@ public partial class MainWindow : Window
         var selectedItem = ImageListBox.SelectedItem as ReceiptImageItem;
         var canUseWorker = _isOcrWorkerReady && !_isAnalyzeAllRunning;
         var hasPendingItems = _images.Any(item => item.Status == ReceiptQueueStatus.Pending);
+        var isApproved = selectedItem?.Status == ReceiptQueueStatus.Approved;
+
+        ApproveFieldsButton.Content = isApproved ? "Roll Back" : "Approve Fields";
+        ApproveFieldsButton.Style = (Style)FindResource(
+            isApproved ? "RollbackActionButtonStyle" : "FieldReviewActionButtonStyle");
 
         AnalyzeButton.IsEnabled = canUseWorker &&
                                   selectedItem is { Status: ReceiptQueueStatus.Pending, IsSemanticParsing: false };
@@ -551,9 +736,24 @@ public partial class MainWindow : Window
         ConfirmOcrButton.IsEnabled = selectedItem is { IsSemanticParsing: false } &&
                                      CanConfirmOcr(selectedItem) &&
                                      !_isReviewActionCoolingDown;
-        ApproveFieldsButton.IsEnabled = selectedItem is { Status: ReceiptQueueStatus.FieldReview, IsSemanticParsing: false } &&
+        ApproveFieldsButton.IsEnabled = selectedItem is
+                                        {
+                                            Status: ReceiptQueueStatus.FieldReview or ReceiptQueueStatus.Approved,
+                                            IsSemanticParsing: false
+                                        } &&
                                         !_isReviewActionCoolingDown;
         NextReceiptButton.IsEnabled = _images.Count > 0;
+        var selectedReceipts = ImageListBox.SelectedItems.OfType<ReceiptImageItem>().ToList();
+        RemoveReceiptsButton.IsEnabled = selectedReceipts.Count > 0 &&
+                                         !_isAnalyzeAllRunning &&
+                                         selectedReceipts.All(receipt =>
+                                             receipt.Status != ReceiptQueueStatus.Processing &&
+                                             !receipt.IsSemanticParsing);
+        FieldReviewListBox.IsEnabled = selectedItem is
+                                       {
+                                           Status: ReceiptQueueStatus.FieldReview,
+                                           IsSemanticParsing: false
+                                       };
     }
 
     private void ReceiptImageItem_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -634,7 +834,7 @@ public partial class MainWindow : Window
         return item is
         {
             AnalysisResult: not null,
-            Status: ReceiptQueueStatus.OcrReview or ReceiptQueueStatus.FieldReview or ReceiptQueueStatus.Approved
+            Status: ReceiptQueueStatus.OcrReview or ReceiptQueueStatus.FieldReview
         };
     }
 
@@ -900,12 +1100,10 @@ public partial class MainWindow : Window
         }
         catch (PerfectFormatMismatchException)
         {
-            System.Windows.MessageBox.Show(
+            ConfirmationDialog.ShowNotice(
                 this,
-                ExcelExportService.BuildPerfectFormatGuide(),
-                "Excel Format Rejected",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Warning);
+                "Excel format not supported",
+                ExcelExportService.BuildPerfectFormatGuide());
             StatusTextBlock.Text = "Excel export rejected: target file is not Perfect Format.";
             AppendDebugDump($"UI Excel export rejected by perfect format check: path={dialog.FileName}");
         }

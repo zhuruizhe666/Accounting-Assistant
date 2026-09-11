@@ -2,45 +2,91 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Batch Fill"
-        Height="420"
-        Width="460"
-        MinHeight="380"
-        MinWidth="420"
+        Height="560"
+        Width="520"
+        MinHeight="500"
+        MinWidth="480"
         WindowStartupLocation="CenterOwner">
-    <Grid Margin="16">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel>
-            <DockPanel>
+        <DockPanel Grid.Row="0">
+            <Button Content="Manage suggestions"
+                    DockPanel.Dock="Right"
+                    Width="124"
+                    Height="30"
+                    HorizontalAlignment="Right"
+                    Style="{StaticResource CompactGhostButtonStyle}"
+                    Click="ManageSuggestionsButton_Click" />
+            <StackPanel>
+                <TextBlock Text="Batch fill receipts"
+                           FontFamily="{StaticResource AppDisplayFontFamily}"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}" />
                 <TextBlock Text="Only non-empty values will be applied."
-                           Foreground="#555555"
-                           VerticalAlignment="Center" />
-                <Button Content="管理建议"
-                        DockPanel.Dock="Right"
-                        Width="88"
-                        Height="28"
-                        HorizontalAlignment="Right"
-                        Click="ManageSuggestionsButton_Click" />
-            </DockPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                <RadioButton x:Name="SelectedReceiptsRadioButton"
-                             Content="Selected"
-                             IsChecked="True" />
-                <RadioButton x:Name="AllReviewableRadioButton"
-                             Content="All Analyzed"
-                             Margin="16,0,0,0" />
+                           Margin="0,3,0,0"
+                           Style="{StaticResource SectionDescriptionTextStyle}" />
             </StackPanel>
+        </DockPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,18,0,0">
+            <TextBlock Text="Apply to"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource TextSecondaryBrush}" />
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <RadioButton x:Name="SelectedReceiptsRadioButton"
+                             Grid.Column="0"
+                             IsChecked="True"
+                             Style="{StaticResource ChoiceCardRadioButtonStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Selected" FontWeight="SemiBold" />
+                        <TextBlock Text="Current queue selection"
+                                   Margin="0,2,0,0"
+                                   FontSize="{StaticResource FontSizeCaption}"
+                                   Foreground="{StaticResource TextMutedBrush}" />
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton x:Name="AllReviewableRadioButton"
+                             Grid.Column="2"
+                             Style="{StaticResource ChoiceCardRadioButtonStyle}">
+                    <StackPanel>
+                        <TextBlock Text="All analyzed" FontWeight="SemiBold" />
+                        <TextBlock Text="Every reviewable receipt"
+                                   Margin="0,2,0,0"
+                                   FontSize="{StaticResource FontSizeCaption}"
+                                   Foreground="{StaticResource TextMutedBrush}" />
+                    </StackPanel>
+                </RadioButton>
+            </Grid>
+
             <CheckBox x:Name="OverwriteCheckBox"
-                      Content="Overwrite existing values"
-                      Margin="0,8,0,0" />
+                      Margin="0,10,0,0"
+                      Style="{StaticResource SettingCheckBoxStyle}">
+                <StackPanel>
+                    <TextBlock Text="Overwrite existing values" FontWeight="SemiBold" />
+                    <TextBlock Text="Replace fields that already contain data"
+                               Margin="0,2,0,0"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               Foreground="{StaticResource TextMutedBrush}" />
+                </StackPanel>
+            </CheckBox>
         </StackPanel>
 
-        <ScrollViewer Grid.Row="1" Margin="0,14,0,14" VerticalScrollBarVisibility="Auto">
-            <Grid>
+        <ScrollViewer Grid.Row="2"
+                      Margin="0,18,0,16"
+                      VerticalScrollBarVisibility="Auto">
+            <Grid Margin="0,0,6,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -52,28 +98,28 @@
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="票据类型" VerticalAlignment="Center" Margin="0,0,8,8" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="票据类型" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,8" />
                 <ComboBox x:Name="DocumentTypeComboBox" Grid.Row="0" Grid.Column="1" IsEditable="True" Margin="0,0,0,8" />
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="交易方" VerticalAlignment="Center" Margin="0,0,8,8" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="交易方" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,8" />
                 <ComboBox x:Name="CounterpartyComboBox" Grid.Row="1" Grid.Column="1" IsEditable="True" Margin="0,0,0,8" />
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="费用类别" VerticalAlignment="Center" Margin="0,0,8,8" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="费用类别" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,8" />
                 <ComboBox x:Name="ExpenseCategoryComboBox" Grid.Row="2" Grid.Column="1" IsEditable="True" Margin="0,0,0,8" />
 
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="项目名" VerticalAlignment="Center" Margin="0,0,8,8" />
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="项目名" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,8" />
                 <ComboBox x:Name="ProjectNameComboBox" Grid.Row="3" Grid.Column="1" IsEditable="True" Margin="0,0,0,8" />
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="部门" VerticalAlignment="Center" Margin="0,0,8,8" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="部门" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,8" />
                 <ComboBox x:Name="DepartmentComboBox" Grid.Row="4" Grid.Column="1" IsEditable="True" Margin="0,0,0,8" />
 
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="经办人" VerticalAlignment="Center" Margin="0,0,8,8" />
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="经办人" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,8" />
                 <ComboBox x:Name="HandlerComboBox" Grid.Row="5" Grid.Column="1" IsEditable="True" Margin="0,0,0,8" />
 
-                <TextBlock Grid.Row="6" Grid.Column="0" Text="备注" VerticalAlignment="Top" Margin="0,4,8,0" />
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="备注" VerticalAlignment="Top" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,7,12,0" />
                 <TextBox x:Name="NotesTextBox"
                          Grid.Row="6"
                          Grid.Column="1"
@@ -84,17 +130,19 @@
             </Grid>
         </ScrollViewer>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel"
+                    Width="96"
+                    Height="34"
+                    Style="{StaticResource GhostButtonStyle}"
+                    IsCancel="True" />
             <Button Content="Apply"
-                    Width="88"
-                    Height="30"
+                    Width="96"
+                    Height="34"
+                    Margin="8,0,0,0"
+                    Style="{StaticResource PrimaryButtonStyle}"
                     IsDefault="True"
                     Click="ApplyButton_Click" />
-            <Button Content="Cancel"
-                    Width="88"
-                    Height="30"
-                    Margin="8,0,0,0"
-                    IsCancel="True" />
         </StackPanel>
     </Grid>
 </Window>

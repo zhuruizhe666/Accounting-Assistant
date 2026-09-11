@@ -1,0 +1,106 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- Typography -->
+    <FontFamily x:Key="AppFontFamily">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="AppDisplayFontFamily">Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="AppMonospaceFontFamily">Cascadia Mono, Consolas</FontFamily>
+
+    <system:Double x:Key="FontSizeCaption">11</system:Double>
+    <system:Double x:Key="FontSizeBody">13</system:Double>
+    <system:Double x:Key="FontSizeBodyLarge">14</system:Double>
+    <system:Double x:Key="FontSizePanelTitle">16</system:Double>
+    <system:Double x:Key="FontSizePageTitle">22</system:Double>
+
+    <!-- Core palette -->
+    <Color x:Key="AppBackgroundColor">#FFF4F7FB</Color>
+    <Color x:Key="SurfaceColor">#FFFFFFFF</Color>
+    <Color x:Key="SurfaceSubtleColor">#FFF8FAFC</Color>
+    <Color x:Key="SurfaceHoverColor">#FFEEF3F8</Color>
+    <Color x:Key="SurfacePressedColor">#FFE4EBF3</Color>
+    <Color x:Key="BorderColor">#FFD8E0EA</Color>
+    <Color x:Key="BorderStrongColor">#FFB9C5D3</Color>
+
+    <Color x:Key="TextPrimaryColor">#FF172033</Color>
+    <Color x:Key="TextSecondaryColor">#FF536176</Color>
+    <Color x:Key="TextMutedColor">#FF7B8798</Color>
+
+    <Color x:Key="AccentColor">#FF2563EB</Color>
+    <Color x:Key="AccentHoverColor">#FF1D4ED8</Color>
+    <Color x:Key="AccentPressedColor">#FF1E40AF</Color>
+    <Color x:Key="AccentSoftColor">#FFE8F0FE</Color>
+    <Color x:Key="FocusColor">#FF60A5FA</Color>
+
+    <Color x:Key="DisabledSurfaceColor">#FFEDF1F5</Color>
+    <Color x:Key="DisabledTextColor">#FF98A2B3</Color>
+    <Color x:Key="SuccessColor">#FF2F7D57</Color>
+    <Color x:Key="SuccessSoftColor">#FFE8F5EE</Color>
+    <Color x:Key="WarningColor">#FFA76508</Color>
+    <Color x:Key="WarningSoftColor">#FFFFF3D6</Color>
+    <Color x:Key="DangerColor">#FFC2413B</Color>
+    <Color x:Key="DangerHoverColor">#FFA93632</Color>
+    <Color x:Key="DangerPressedColor">#FF8F2C29</Color>
+    <Color x:Key="DangerSoftColor">#FFFCEAE8</Color>
+
+    <!-- Receipt workflow status palette; base colors match ReceiptImageItem.StatusBrush. -->
+    <Color x:Key="PendingStatusColor">#FF808080</Color>
+    <Color x:Key="PendingStatusForegroundColor">#FF565D66</Color>
+    <Color x:Key="PendingStatusSoftColor">#FFF2F3F4</Color>
+    <Color x:Key="OcrReviewStatusColor">#FFFFA500</Color>
+    <Color x:Key="OcrReviewStatusForegroundColor">#FF995D00</Color>
+    <Color x:Key="OcrReviewStatusSoftColor">#FFFFF2D8</Color>
+    <Color x:Key="FieldReviewStatusColor">#FF008000</Color>
+    <Color x:Key="FieldReviewStatusForegroundColor">#FF166A2C</Color>
+    <Color x:Key="FieldReviewStatusSoftColor">#FFE6F4E8</Color>
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
+    <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="{StaticResource SurfaceSubtleColor}" />
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}" />
+    <SolidColorBrush x:Key="SurfacePressedBrush" Color="{StaticResource SurfacePressedColor}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />
+    <SolidColorBrush x:Key="BorderStrongBrush" Color="{StaticResource BorderStrongColor}" />
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="{StaticResource AccentPressedColor}" />
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="{StaticResource AccentSoftColor}" />
+    <SolidColorBrush x:Key="FocusBrush" Color="{StaticResource FocusColor}" />
+    <SolidColorBrush x:Key="DisabledSurfaceBrush" Color="{StaticResource DisabledSurfaceColor}" />
+    <SolidColorBrush x:Key="DisabledTextBrush" Color="{StaticResource DisabledTextColor}" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="SuccessSoftBrush" Color="{StaticResource SuccessSoftColor}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+    <SolidColorBrush x:Key="WarningSoftBrush" Color="{StaticResource WarningSoftColor}" />
+    <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
+    <SolidColorBrush x:Key="DangerHoverBrush" Color="{StaticResource DangerHoverColor}" />
+    <SolidColorBrush x:Key="DangerPressedBrush" Color="{StaticResource DangerPressedColor}" />
+    <SolidColorBrush x:Key="DangerSoftBrush" Color="{StaticResource DangerSoftColor}" />
+    <SolidColorBrush x:Key="PendingStatusBrush" Color="{StaticResource PendingStatusColor}" />
+    <SolidColorBrush x:Key="PendingStatusForegroundBrush" Color="{StaticResource PendingStatusForegroundColor}" />
+    <SolidColorBrush x:Key="PendingStatusSoftBrush" Color="{StaticResource PendingStatusSoftColor}" />
+    <SolidColorBrush x:Key="OcrReviewStatusBrush" Color="{StaticResource OcrReviewStatusColor}" />
+    <SolidColorBrush x:Key="OcrReviewStatusForegroundBrush" Color="{StaticResource OcrReviewStatusForegroundColor}" />
+    <SolidColorBrush x:Key="OcrReviewStatusSoftBrush" Color="{StaticResource OcrReviewStatusSoftColor}" />
+    <SolidColorBrush x:Key="FieldReviewStatusBrush" Color="{StaticResource FieldReviewStatusColor}" />
+    <SolidColorBrush x:Key="FieldReviewStatusForegroundBrush" Color="{StaticResource FieldReviewStatusForegroundColor}" />
+    <SolidColorBrush x:Key="FieldReviewStatusSoftBrush" Color="{StaticResource FieldReviewStatusSoftColor}" />
+
+    <!-- Spacing and geometry -->
+    <Thickness x:Key="Space4">4</Thickness>
+    <Thickness x:Key="Space8">8</Thickness>
+    <Thickness x:Key="Space12">12</Thickness>
+    <Thickness x:Key="Space16">16</Thickness>
+    <Thickness x:Key="Space24">24</Thickness>
+    <Thickness x:Key="ControlPadding">14,6</Thickness>
+    <Thickness x:Key="CompactControlPadding">10,4</Thickness>
+    <CornerRadius x:Key="RadiusSmall">4</CornerRadius>
+    <CornerRadius x:Key="RadiusMedium">8</CornerRadius>
+    <CornerRadius x:Key="RadiusLarge">12</CornerRadius>
+    <system:Double x:Key="ControlHeight">32</system:Double>
+    <system:Double x:Key="CompactControlHeight">28</system:Double>
+</ResourceDictionary>
