@@ -23,7 +23,7 @@
 4. `Analyze`：分析当前选中的 Pending 图片，只执行 OCR。
 5. `Analyze All`：顺序分析所有 Pending 图片。
 6. `Batch Fill`：批量填写已完成 Analyze 的票据；空输入不修改，默认不覆盖已有值。弹窗里的 `管理建议` 可以维护常用下拉建议；在新增建议输入框里按 Enter 会直接新增。
-7. `Export Excel`：把 Approved 票据追加到 `.xlsx`。如果目标文件不存在，会创建 Perfect Format；如果目标文件存在但第一行表头不是 Perfect Format，会拒绝写入并弹出 normalize 说明。
+7. `Export Excel`：把 Approved 票据追加到 `.xlsx`。如果目标文件不存在，会创建 Perfect Format；如果目标文件存在但第一行表头不是 Perfect Format，会拒绝写入并弹出 normalize 说明。导出时如果发现目标 Excel 已有相同 `单号`，会询问是否仍然 append。
 8. `Sort Queue`：手动按处理阶段重排 Receipt Queue，越早的阶段越靠上，越接近完成越靠下。
 9. 在 `OCR` 页检查识别文本；双击某一行可以修正 OCR 文字。
 10. 点击图片上的 OCR 框会选中右侧对应文字；点击右侧文字也会高亮图片上的框。
@@ -89,6 +89,8 @@ OCR状态
 ```
 
 如果表头不匹配，程序会拒绝写入。已有 Excel 的列迁移、删减、合并、语义解释都不由本软件自动处理。
+
+重复导出保护使用 `单号` 列作为业务 key：如果目标 Excel 已存在相同单号，本次导出会询问是否仍然 append。选择 Yes 会照常追加，选择 No 会跳过这些相同单号的 receipt。空单号不会触发重复判断。
 
 ## `data/project_profile.json`
 

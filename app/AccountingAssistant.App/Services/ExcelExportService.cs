@@ -37,11 +37,13 @@ public sealed class ExcelExportService
     private static readonly XNamespace AppPropertiesNs = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
     private static readonly XNamespace VtNs = "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes";
 
-    public int AppendRows(string path, IReadOnlyList<ExcelReceiptRow> rows)
+    public const int DocumentNumberColumnIndex = 2;
+
+    public ExcelAppendResult AppendRows(string path, IReadOnlyList<ExcelReceiptRow> rows)
     {
         if (rows.Count == 0)
         {
-            return 0;
+            return new ExcelAppendResult(0, 0);
         }
 
         var fullPath = Path.GetFullPath(path);
@@ -58,7 +60,20 @@ public sealed class ExcelExportService
 
         EnsurePerfectFormat(fullPath);
         AppendRowsToWorkbook(fullPath, rows);
-        return rows.Count;
+        return new ExcelAppendResult(rows.Count, 0);
+    }
+
+    public IReadOnlySet<string> ReadExistingDocumentNumbers(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        if (!File.Exists(fullPath))
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        EnsurePerfectFormat(fullPath);
+        return ReadColumnValues(fullPath, DocumentNumberColumnIndex)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     public static string BuildPerfectFormatGuide()
@@ -157,6 +172,34 @@ public sealed class ExcelExportService
             .OrderBy(cell => ParseColumnIndex(cell.Attribute("r")?.Value))
             .Select(cell => ReadCellText(cell, sharedStrings))
             .ToList();
+    }
+
+    private static IReadOnlyList<string> ReadColumnValues(string path, int columnIndex)
+    {
+        using var archive = ZipFile.OpenRead(path);
+        var worksheetEntry = archive.GetEntry("xl/worksheets/sheet1.xml");
+        if (worksheetEntry is null)
+        {
+            return [];
+        }
+
+        var sharedStrings = ReadSharedStrings(archive);
+        XDocument document;
+        using (var stream = worksheetEntry.Open())
+        {
+            document = XDocument.Load(stream);
+        }
+
+        return document.Root?
+            .Element(SpreadsheetNs + "sheetData")?
+            .Elements(SpreadsheetNs + "row")
+            .Where(row => ParseRowIndex(row.Attribute("r")?.Value) > 1)
+            .Select(row => row.Elements(SpreadsheetNs + "c")
+                .FirstOrDefault(cell => ParseColumnIndex(cell.Attribute("r")?.Value) == columnIndex))
+            .Where(cell => cell is not null)
+            .Select(cell => ReadCellText(cell!, sharedStrings))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToList() ?? [];
     }
 
     private static IReadOnlyList<string> ReadSharedStrings(ZipArchive archive)
@@ -381,7 +424,14 @@ public sealed class ExcelExportService
     }
 }
 
-public sealed record ExcelReceiptRow(IReadOnlyList<string> Values);
+public sealed record ExcelReceiptRow(IReadOnlyList<string> Values)
+{
+    public string DocumentNumber => Values.Count >= ExcelExportService.DocumentNumberColumnIndex
+        ? Values[ExcelExportService.DocumentNumberColumnIndex - 1]
+        : string.Empty;
+}
+
+public sealed record ExcelAppendResult(int ExportedCount, int SkippedDuplicateCount);
 
 public sealed class PerfectFormatMismatchException(IReadOnlyList<string> actualHeaders) : Exception("Excel file is not Accounting Assistant Perfect Format.")
 {

@@ -872,9 +872,19 @@ public partial class MainWindow : Window
 
         try
         {
-            var exportedCount = _excelExportService.AppendRows(dialog.FileName, exportRows);
-            StatusTextBlock.Text = $"Exported {exportedCount} approved receipt(s) to Excel.";
-            AppendDebugDump($"UI Excel export completed: rows={exportedCount}, path={dialog.FileName}");
+            var existingDocumentNumbers = _excelExportService.ReadExistingDocumentNumbers(dialog.FileName);
+            var duplicateRows = exportRows
+                .Where(row => !string.IsNullOrWhiteSpace(row.DocumentNumber) &&
+                              existingDocumentNumbers.Contains(row.DocumentNumber))
+                .ToList();
+            var appendDuplicateDocumentNumbers = duplicateRows.Count == 0 || ConfirmAppendDuplicateDocumentNumbers(duplicateRows);
+            var rowsToAppend = appendDuplicateDocumentNumbers
+                ? exportRows
+                : exportRows.Except(duplicateRows).ToList();
+            var exportResult = _excelExportService.AppendRows(dialog.FileName, rowsToAppend);
+            var skippedDuplicateCount = exportRows.Count - rowsToAppend.Count;
+            StatusTextBlock.Text = $"Exported {exportResult.ExportedCount} approved receipt(s). Skipped {skippedDuplicateCount} duplicate document number(s).";
+            AppendDebugDump($"UI Excel export completed: exported={exportResult.ExportedCount}, skipped_duplicate_document_numbers={skippedDuplicateCount}, path={dialog.FileName}");
         }
         catch (PerfectFormatMismatchException)
         {
@@ -892,6 +902,36 @@ public partial class MainWindow : Window
             StatusTextBlock.Text = "Excel export failed. Check Debug Dump.";
             AppendDebugDump($"UI Excel export failed: {ex}");
         }
+    }
+
+    private bool ConfirmAppendDuplicateDocumentNumbers(IReadOnlyList<ExcelReceiptRow> duplicateRows)
+    {
+        var duplicateDocumentNumbers = duplicateRows
+            .Select(row => row.DocumentNumber)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+        var moreText = duplicateRows.Count > duplicateDocumentNumbers.Count
+            ? $"{Environment.NewLine}..."
+            : string.Empty;
+        var message = "目标 Excel 已存在相同单号。是否仍然 append 这些 receipt？" +
+                      Environment.NewLine +
+                      Environment.NewLine +
+                      string.Join(Environment.NewLine, duplicateDocumentNumbers) +
+                      moreText +
+                      Environment.NewLine +
+                      Environment.NewLine +
+                      "Yes = 仍然 append" +
+                      Environment.NewLine +
+                      "No = 跳过这些相同单号的 receipt";
+
+        return System.Windows.MessageBox.Show(
+            this,
+            message,
+            "Duplicate Document Number",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes;
     }
 
     private static ExcelReceiptRow BuildExcelReceiptRow(ReceiptImageItem item)
