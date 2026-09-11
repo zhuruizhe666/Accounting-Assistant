@@ -7,6 +7,8 @@
         <KeyBinding Key="Enter" Modifiers="Shift" Command="{Binding ConfirmOcrCommand}" />
         <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding ApproveFieldsCommand}" />
         <KeyBinding Key="Down" Modifiers="Shift" Command="{Binding NextReceiptCommand}" />
+        <KeyBinding Key="O" Modifiers="Shift" Command="{Binding ShowOcrTabCommand}" />
+        <KeyBinding Key="F" Modifiers="Shift" Command="{Binding ShowFieldsTabCommand}" />
     </Window.InputBindings>
 
     <Grid Margin="16">
@@ -40,30 +42,38 @@
             </Grid.ColumnDefinitions>
 
             <GroupBox Grid.Column="0" Header="Receipt Queue" Margin="0,0,12,0">
-                <ListBox x:Name="ImageListBox" SelectionMode="Extended" SelectionChanged="ImageListBox_SelectionChanged">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="4,2">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="18" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Ellipse Grid.Column="0"
-                                         Width="10"
-                                         Height="10"
-                                         Fill="{Binding StatusBrush}"
-                                         VerticalAlignment="Center" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding StatusText}"
-                                               FontSize="11"
-                                               Foreground="#666666"
-                                               Margin="0,1,0,0" />
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                <DockPanel>
+                    <Button x:Name="SortQueueButton"
+                            DockPanel.Dock="Bottom"
+                            Content="Sort Queue"
+                            Height="32"
+                            Margin="8"
+                            Click="SortQueueButton_Click" />
+                    <ListBox x:Name="ImageListBox" SelectionMode="Extended" SelectionChanged="ImageListBox_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="4,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="18" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Ellipse Grid.Column="0"
+                                             Width="10"
+                                             Height="10"
+                                             Fill="{Binding StatusBrush}"
+                                             VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding StatusText}"
+                                                   FontSize="11"
+                                                   Foreground="#666666"
+                                                   Margin="0,1,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
             </GroupBox>
 
             <Border Grid.Column="1" BorderBrush="#D0D0D0" BorderThickness="1" Background="#FAFAFA">
@@ -93,7 +103,7 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <TabControl Grid.Row="0">
+                    <TabControl x:Name="ReviewTabControl" Grid.Row="0">
                         <TabItem Header="OCR">
                             <ListBox x:Name="OcrResultListBox"
                                      SelectionChanged="OcrResultListBox_SelectionChanged"

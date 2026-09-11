@@ -58,11 +58,17 @@ public partial class MainWindow : Window
 
     public ICommand NextReceiptCommand { get; }
 
+    public ICommand ShowOcrTabCommand { get; }
+
+    public ICommand ShowFieldsTabCommand { get; }
+
     public MainWindow()
     {
         ConfirmOcrCommand = new RelayCommand(_ => ConfirmSelectedOcrReview());
         ApproveFieldsCommand = new RelayCommand(_ => ApproveSelectedFields());
         NextReceiptCommand = new RelayCommand(_ => MoveToNextReceipt());
+        ShowOcrTabCommand = new RelayCommand(_ => ShowReviewTab(0));
+        ShowFieldsTabCommand = new RelayCommand(_ => ShowReviewTab(1));
 
         InitializeComponent();
         DataContext = this;
@@ -302,6 +308,11 @@ public partial class MainWindow : Window
     private void NextReceiptButton_Click(object sender, RoutedEventArgs e)
     {
         MoveToNextReceipt();
+    }
+
+    private void SortQueueButton_Click(object sender, RoutedEventArgs e)
+    {
+        SortReceiptQueueByStage();
     }
 
     private void ConfirmSelectedOcrReview()
@@ -553,31 +564,50 @@ public partial class MainWindow : Window
             return;
         }
 
-        MoveReceiptToStagePosition(item);
         UpdateActionButtonsEnabled();
     }
 
-    private void MoveReceiptToStagePosition(ReceiptImageItem item)
+    private void SortReceiptQueueByStage()
     {
-        var currentIndex = _images.IndexOf(item);
-        if (currentIndex < 0)
+        if (_images.Count < 2)
         {
             return;
         }
 
-        var targetStage = GetQueueStageOrder(item);
-        var targetIndex = _images
-            .Where(candidate => !ReferenceEquals(candidate, item))
-            .Count(candidate => GetQueueStageOrder(candidate) <= targetStage);
+        var selectedItems = ImageListBox.SelectedItems
+            .OfType<ReceiptImageItem>()
+            .ToHashSet();
+        var selectedItem = ImageListBox.SelectedItem as ReceiptImageItem;
+        var orderedItems = _images
+            .Select((item, index) => new { item, index })
+            .OrderBy(pair => GetQueueStageOrder(pair.item))
+            .ThenBy(pair => pair.index)
+            .Select(pair => pair.item)
+            .ToList();
 
-        if (targetIndex == currentIndex)
+        for (var index = 0; index < orderedItems.Count; index++)
         {
-            return;
+            var currentIndex = _images.IndexOf(orderedItems[index]);
+            if (currentIndex != index)
+            {
+                _images.Move(currentIndex, index);
+            }
         }
 
-        _images.Move(currentIndex, targetIndex);
-        ImageListBox.ScrollIntoView(item);
-        AppendDebugDump($"UI receipt repositioned by stage: stage={item.StatusText}, index={targetIndex}, path={item.FullPath}");
+        ImageListBox.SelectedItems.Clear();
+        foreach (var item in selectedItems)
+        {
+            ImageListBox.SelectedItems.Add(item);
+        }
+
+        if (selectedItem is not null)
+        {
+            ImageListBox.SelectedItem = selectedItem;
+            ImageListBox.ScrollIntoView(selectedItem);
+        }
+
+        StatusTextBlock.Text = "Receipt queue sorted by stage.";
+        AppendDebugDump("UI receipt queue sorted by stage.");
     }
 
     private static int GetQueueStageOrder(ReceiptImageItem item)
@@ -606,6 +636,25 @@ public partial class MainWindow : Window
             AnalysisResult: not null,
             Status: ReceiptQueueStatus.OcrReview or ReceiptQueueStatus.FieldReview or ReceiptQueueStatus.Approved
         };
+    }
+
+    private void ShowReviewTab(int tabIndex)
+    {
+        if (ReviewTabControl.Items.Count <= tabIndex)
+        {
+            return;
+        }
+
+        ReviewTabControl.SelectedIndex = tabIndex;
+        if (tabIndex == 0)
+        {
+            OcrResultListBox.Focus();
+            StatusTextBlock.Text = "Review Panel switched to OCR.";
+            return;
+        }
+
+        FieldReviewListBox.Focus();
+        StatusTextBlock.Text = "Review Panel switched to Fields.";
     }
 
     private void ReceiptScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
