@@ -1806,7 +1806,19 @@ public partial class MainWindow : Window
             directory = directory.Parent;
         }
 
-        return System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        directory = new DirectoryInfo(startPath);
+        while (directory is not null)
+        {
+            if (Directory.Exists(System.IO.Path.Combine(directory.FullName, "worker", "accounting_worker")) ||
+                File.Exists(System.IO.Path.Combine(directory.FullName, "data", "project_profile.json")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return AppContext.BaseDirectory;
     }
 
     private sealed record FieldDefinition(string FieldName, string Label);

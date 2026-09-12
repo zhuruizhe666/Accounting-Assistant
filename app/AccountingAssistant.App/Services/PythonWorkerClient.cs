@@ -193,10 +193,14 @@ public sealed class PythonWorkerClient : IDisposable
 
         RestartServeProcess();
 
-        var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
-        var workerScript = Path.Combine(repoRoot, "worker", "accounting_worker", "main.py");
+        var workerRoot = ResolveWorkerRoot();
+        var workerScript = Path.Combine(workerRoot, "accounting_worker", "main.py");
+        if (!File.Exists(workerScript))
+        {
+            throw new FileNotFoundException($"Python worker script was not found: {workerScript}");
+        }
 
-        var startInfo = CreateWorkerStartInfo();
+        var startInfo = CreateWorkerStartInfo(workerRoot);
         startInfo.ArgumentList.Add(workerScript);
         startInfo.ArgumentList.Add("serve");
 
@@ -233,10 +237,14 @@ public sealed class PythonWorkerClient : IDisposable
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(AnalyzeTimeout);
 
-        var repoRoot = FindRepoRoot(AppContext.BaseDirectory);
-        var workerScript = Path.Combine(repoRoot, "worker", "accounting_worker", "main.py");
+        var workerRoot = ResolveWorkerRoot();
+        var workerScript = Path.Combine(workerRoot, "accounting_worker", "main.py");
+        if (!File.Exists(workerScript))
+        {
+            throw new FileNotFoundException($"Python worker script was not found: {workerScript}");
+        }
 
-        var startInfo = CreateWorkerStartInfo();
+        var startInfo = CreateWorkerStartInfo(workerRoot);
         startInfo.ArgumentList.Add(workerScript);
         startInfo.ArgumentList.Add("analyze");
         startInfo.ArgumentList.Add(imagePath);
@@ -272,22 +280,68 @@ public sealed class PythonWorkerClient : IDisposable
             ?? throw new InvalidOperationException("Python worker returned empty or invalid JSON.");
     }
 
-    private static ProcessStartInfo CreateWorkerStartInfo()
+    private ProcessStartInfo CreateWorkerStartInfo(string workerRoot)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = "python",
+            FileName = ResolvePythonExecutable(),
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            WorkingDirectory = workerRoot
         };
 
         startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
+        startInfo.Environment["PYTHONPATH"] = workerRoot;
         return startInfo;
+    }
+
+    private string ResolvePythonExecutable()
+    {
+        var environmentOverride = Environment.GetEnvironmentVariable("ACCOUNTING_ASSISTANT_PYTHON");
+        if (!string.IsNullOrWhiteSpace(environmentOverride) && File.Exists(environmentOverride))
+        {
+            OnDebugOutput($"C# using Python from ACCOUNTING_ASSISTANT_PYTHON: {environmentOverride}");
+            return environmentOverride;
+        }
+
+        var appBase = AppContext.BaseDirectory;
+        var repoRoot = FindRepoRoot(appBase);
+        var candidates = new[]
+        {
+            Path.Combine(appBase, "runtime", "python", ".venv", "Scripts", "python.exe"),
+            Path.Combine(repoRoot, "runtime", "python", ".venv", "Scripts", "python.exe"),
+            Path.Combine(repoRoot, ".venv", "Scripts", "python.exe")
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (File.Exists(candidate))
+            {
+                OnDebugOutput($"C# using Python executable: {candidate}");
+                return candidate;
+            }
+        }
+
+        OnDebugOutput("C# using Python from PATH.");
+        return "python";
+    }
+
+    private static string ResolveWorkerRoot()
+    {
+        var appBase = AppContext.BaseDirectory;
+        var packagedWorker = Path.Combine(appBase, "worker");
+        if (Directory.Exists(Path.Combine(packagedWorker, "accounting_worker")))
+        {
+            return packagedWorker;
+        }
+
+        var repoRoot = FindRepoRoot(appBase);
+        return Path.Combine(repoRoot, "worker");
     }
 
     private void RestartServeProcess()
@@ -344,7 +398,19 @@ public sealed class PythonWorkerClient : IDisposable
             directory = directory.Parent;
         }
 
-        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        directory = new DirectoryInfo(startPath);
+        while (directory is not null)
+        {
+            if (Directory.Exists(Path.Combine(directory.FullName, "worker", "accounting_worker")) ||
+                File.Exists(Path.Combine(directory.FullName, "data", "project_profile.json")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return AppContext.BaseDirectory;
     }
 
     private void OnDebugOutput(string message)

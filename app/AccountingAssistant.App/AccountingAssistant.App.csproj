@@ -14,4 +14,31 @@
   <ItemGroup>
     <Resource Include="Assets\AccountingAssistant.png" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\worker\accounting_worker\**\*.py"
+             Link="worker\accounting_worker\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\requirements.txt"
+             Link="requirements.txt"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\scripts\bootstrap.ps1"
+             Link="scripts\bootstrap.ps1"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\scripts\bootstrap.cmd"
+             Link="scripts\bootstrap.cmd"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\data\project_profile.json"
+             Link="data\project_profile.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\首次安装指南.md"
+             Link="首次安装指南.md"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

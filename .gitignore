@@ -5,6 +5,8 @@
 bin/
 obj/
 tmp-build-verify/
+release/
+runtime/
 
 __pycache__/
 *.py[cod]
