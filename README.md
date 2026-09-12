@@ -231,13 +231,3 @@ ollama pull qwen2.5:7b-instruct
 ```powershell
 .\runtime\python\.venv\Scripts\python.exe -c "from paddleocr import PaddleOCR; print('PaddleOCR import OK')"
 ```
-
-## 当前阶段
-
-项目已经进入发布前阶段。接下来重点是：
-
-- Release smoke test
-- 干净 Windows 环境验证
-- 安装失败提示优化
-- 发布包 zip 规范
-- 后续再考虑 installer
