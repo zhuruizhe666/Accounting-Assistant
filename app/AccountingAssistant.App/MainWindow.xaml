@@ -1,13 +1,25 @@
 <Window x:Class="AccountingAssistant.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Accounting Assistant"
         Height="760"
         Width="1160"
         MinHeight="640"
         MinWidth="980"
         Background="{StaticResource WorkspaceAmbientBrush}"
+        ResizeMode="CanResize"
+        WindowStyle="None"
+        WindowState="Maximized"
+        StateChanged="MainWindow_StateChanged"
         SizeChanged="Window_SizeChanged">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="38"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"
+                            ResizeBorderThickness="6"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
     <Window.InputBindings>
         <KeyBinding Key="Enter" Modifiers="Shift" Command="{Binding ConfirmOcrCommand}" />
         <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding ApproveFieldsCommand}" />
@@ -16,7 +28,80 @@
         <KeyBinding Key="F" Modifiers="Shift" Command="{Binding ShowFieldsTabCommand}" />
     </Window.InputBindings>
 
-    <Grid Margin="16">
+    <Grid Background="{StaticResource WorkspaceAmbientBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="38" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{StaticResource AppBackgroundBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Margin="12,0,0,0"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Image Width="20"
+                           Height="20"
+                           Source="Assets/AccountingAssistant.png"
+                           Stretch="Uniform" />
+                    <TextBlock Margin="9,0,0,0"
+                               VerticalAlignment="Center"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Text="Accounting Assistant" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource TitleBarButtonStyle}"
+                            ToolTip="Minimize"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                            Click="MinimizeWindowButton_Click">
+                        <Path Width="10"
+                              Height="1"
+                              Data="M 0,0.5 L 10,0.5"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1" />
+                    </Button>
+                    <Button x:Name="ToggleWindowStateButton"
+                            Style="{StaticResource TitleBarButtonStyle}"
+                            ToolTip="Restore"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                            Click="ToggleWindowStateButton_Click">
+                        <Grid Width="12" Height="12">
+                            <Path x:Name="MaximizeWindowGlyph"
+                                  Visibility="Collapsed"
+                                  Data="M 1,1 L 11,1 L 11,11 L 1,11 Z"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1" />
+                            <Path x:Name="RestoreWindowGlyph"
+                                  Data="M 3,1 L 11,1 L 11,9 M 1,3 L 9,3 L 9,11 L 1,11 Z"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1" />
+                        </Grid>
+                    </Button>
+                    <Button Style="{StaticResource TitleBarCloseButtonStyle}"
+                            ToolTip="Close"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                            Click="CloseWindowButton_Click">
+                        <Path Width="10"
+                              Height="10"
+                              Data="M 1,1 L 9,9 M 9,1 L 1,9"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.2"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -527,11 +612,49 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
-                           VerticalAlignment="Center"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           TextTrimming="CharacterEllipsis"
-                           Text="Shortcuts: Shift+Enter confirm · Ctrl+Enter approve or roll back · Shift+↓ next receipt" />
+                <WrapPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Margin="0,0,10,0"
+                               VerticalAlignment="Center"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Text="Shortcuts" />
+
+                    <StackPanel Margin="0,2,12,2" Orientation="Horizontal">
+                        <Border Style="{StaticResource ShortcutKeyBorderStyle}">
+                            <TextBlock Style="{StaticResource ShortcutKeyTextStyle}" Text="Shift+Enter" />
+                        </Border>
+                        <TextBlock Style="{StaticResource ShortcutDescriptionTextStyle}" Text="Confirm" />
+                    </StackPanel>
+
+                    <StackPanel Margin="0,2,12,2" Orientation="Horizontal">
+                        <Border Style="{StaticResource ShortcutKeyBorderStyle}">
+                            <TextBlock Style="{StaticResource ShortcutKeyTextStyle}" Text="Ctrl+Enter" />
+                        </Border>
+                        <TextBlock Style="{StaticResource ShortcutDescriptionTextStyle}" Text="Approve / roll back" />
+                    </StackPanel>
+
+                    <StackPanel Margin="0,2,12,2" Orientation="Horizontal">
+                        <Border Style="{StaticResource ShortcutKeyBorderStyle}">
+                            <TextBlock Style="{StaticResource ShortcutKeyTextStyle}" Text="Shift+↓" />
+                        </Border>
+                        <TextBlock Style="{StaticResource ShortcutDescriptionTextStyle}" Text="Next" />
+                    </StackPanel>
+
+                    <StackPanel Margin="0,2,12,2" Orientation="Horizontal">
+                        <Border Style="{StaticResource ShortcutKeyBorderStyle}">
+                            <TextBlock Style="{StaticResource ShortcutKeyTextStyle}" Text="Shift+O" />
+                        </Border>
+                        <TextBlock Style="{StaticResource ShortcutDescriptionTextStyle}" Text="Review OCR" />
+                    </StackPanel>
+
+                    <StackPanel Margin="0,2,0,2" Orientation="Horizontal">
+                        <Border Style="{StaticResource ShortcutKeyBorderStyle}">
+                            <TextBlock Style="{StaticResource ShortcutKeyTextStyle}" Text="Shift+F" />
+                        </Border>
+                        <TextBlock Style="{StaticResource ShortcutDescriptionTextStyle}" Text="Review Fields" />
+                    </StackPanel>
+                </WrapPanel>
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"
                             HorizontalAlignment="Right"
@@ -559,5 +682,6 @@
                 </StackPanel>
             </Grid>
         </Border>
+        </Grid>
     </Grid>
 </Window>

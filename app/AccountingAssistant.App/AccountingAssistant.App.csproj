@@ -8,5 +8,10 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>AccountingAssistant.App</AssemblyName>
     <RootNamespace>AccountingAssistant.App</RootNamespace>
+    <ApplicationIcon>Assets\AccountingAssistant.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\AccountingAssistant.png" />
+  </ItemGroup>
 </Project>

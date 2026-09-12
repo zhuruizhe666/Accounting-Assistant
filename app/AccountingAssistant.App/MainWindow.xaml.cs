@@ -123,6 +123,31 @@ public partial class MainWindow : Window
         _workerClient.Dispose();
     }
 
+    private void MinimizeWindowButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void ToggleWindowStateButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+    }
+
+    private void CloseWindowButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        var isMaximized = WindowState == WindowState.Maximized;
+        MaximizeWindowGlyph.Visibility = isMaximized ? Visibility.Collapsed : Visibility.Visible;
+        RestoreWindowGlyph.Visibility = isMaximized ? Visibility.Visible : Visibility.Collapsed;
+        ToggleWindowStateButton.ToolTip = isMaximized ? "Restore" : "Maximize";
+    }
+
     private void SelectImagesButton_Click(object sender, RoutedEventArgs e)
     {
         AppendDebugDump("UI select images requested.");
@@ -660,19 +685,16 @@ public partial class MainWindow : Window
         }
 
         var currentIndex = ImageListBox.SelectedIndex;
-        var nextIndex = currentIndex < 0 ? 0 : currentIndex + 1;
-
-        if (nextIndex >= _images.Count)
-        {
-            StatusTextBlock.Text = "Already at the last receipt.";
-            return;
-        }
+        var wrappedToStart = currentIndex == _images.Count - 1;
+        var nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % _images.Count;
 
         ImageListBox.SelectedIndex = nextIndex;
         ImageListBox.ScrollIntoView(_images[nextIndex]);
         ImageListBox.Focus();
-        StatusTextBlock.Text = $"Moved to {_images[nextIndex].FileName}.";
-        AppendDebugDump($"UI moved to next receipt: index={nextIndex}, path={_images[nextIndex].FullPath}");
+        StatusTextBlock.Text = wrappedToStart
+            ? $"Wrapped to first receipt: {_images[nextIndex].FileName}."
+            : $"Moved to {_images[nextIndex].FileName}.";
+        AppendDebugDump($"UI moved to next receipt: index={nextIndex}, wrapped={wrappedToStart}, path={_images[nextIndex].FullPath}");
         UpdateActionButtonsEnabled();
     }
 
