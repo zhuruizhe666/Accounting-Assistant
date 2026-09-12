@@ -6,6 +6,8 @@
         Width="1000"
         MinHeight="540"
         MinWidth="840"
+        Background="{StaticResource AppBackgroundBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <Style x:Key="ExportColumnHeaderStyle" TargetType="DataGridColumnHeader">

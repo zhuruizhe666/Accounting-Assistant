@@ -6,6 +6,8 @@
         Width="560"
         MinHeight="460"
         MinWidth="500"
+        Background="{StaticResource AppBackgroundBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="16">
         <Grid.RowDefinitions>
